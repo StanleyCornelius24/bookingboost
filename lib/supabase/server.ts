@@ -1,8 +1,9 @@
 import 'server-only'
 import { createServerClient as createClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { cache } from 'react'
 
-export const createServerClient = async () => {
+export const createServerClient = cache(async () => {
   const cookieStore = await cookies()
 
   return createClient(
@@ -27,4 +28,4 @@ export const createServerClient = async () => {
       },
     }
   )
-}
+})
