@@ -1,4 +1,3 @@
-import 'server-only'
 import { createServerClient as createClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { cache } from 'react'

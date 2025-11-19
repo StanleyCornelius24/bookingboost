@@ -1,4 +1,3 @@
-import 'server-only'
 import { createClient } from '@supabase/supabase-js'
 
 // Create a Supabase client with service role key for admin operations
