@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     }
 
     // Detect format based on headers
-    const headers = Object.keys(records[0])
+    const headers = Object.keys(records[0] as Record<string, any>)
     const formatDetection = detectFormat(headers)
 
     console.log('Format detection:', formatDetection)

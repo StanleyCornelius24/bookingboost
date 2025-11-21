@@ -1,7 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import type { Hotel } from '@/types'
 
-export async function getUserRole(): Promise<'agency' | 'client' | null> {
+export async function getUserRole(): Promise<'agency' | 'client' | 'admin' | null> {
   try {
     const supabase = await createServerClient()
 
@@ -59,7 +59,7 @@ export async function getUserHotel(): Promise<Hotel | null> {
   }
 }
 
-export async function requireUserRole(): Promise<{ role: 'agency' | 'client'; hotel: Hotel }> {
+export async function requireUserRole(): Promise<{ role: 'agency' | 'client' | 'admin'; hotel: Hotel }> {
   const hotel = await getUserHotel()
 
   if (!hotel) {

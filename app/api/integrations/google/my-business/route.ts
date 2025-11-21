@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
     // If no location ID provided, list available locations first
     if (!locationId && !hotel.google_my_business_location_id) {
       try {
+        // @ts-ignore - Google My Business API types may not be fully accurate
         const accountsResponse = await mybusiness.accounts.list()
         const accounts = accountsResponse.data.accounts || []
 
@@ -60,16 +61,17 @@ export async function GET(request: NextRequest) {
         }
 
         // Get locations for the first account
+        // @ts-ignore - Google My Business API types may not be fully accurate
         const locationsResponse = await mybusiness.accounts.locations.list({
           parent: accounts[0].name
         })
 
         return NextResponse.json({
-          accounts: accounts.map(acc => ({
+          accounts: accounts.map((acc: any) => ({
             name: acc.name,
             accountName: acc.accountName
           })),
-          locations: locationsResponse.data.locations?.map(loc => ({
+          locations: locationsResponse.data.locations?.map((loc: any) => ({
             name: loc.name,
             displayName: loc.title,
             address: loc.storefrontAddress
@@ -114,17 +116,17 @@ export async function GET(request: NextRequest) {
 
       const businessData = {
         location: {
-          name: locationData?.title || 'Hotel Location',
-          address: locationData?.storefrontAddress || {},
-          phoneNumber: locationData?.phoneNumbers?.[0]?.number,
-          website: locationData?.websiteUri,
-          rating: parseFloat(locationData?.metadata?.averageRating || '0'),
-          reviewCount: parseInt(locationData?.metadata?.reviewCount || '0')
+          name: (locationData as any)?.title || 'Hotel Location',
+          address: (locationData as any)?.storefrontAddress || {},
+          phoneNumber: (locationData as any)?.phoneNumbers?.[0]?.number,
+          website: (locationData as any)?.websiteUri,
+          rating: parseFloat((locationData as any)?.metadata?.averageRating || '0'),
+          reviewCount: parseInt((locationData as any)?.metadata?.reviewCount || '0')
         },
         reviews: {
-          recent: reviewsData?.reviews?.slice(0, 5) || [],
-          totalCount: reviewsData?.totalReviewCount || 0,
-          averageRating: reviewsData?.averageRating || 0
+          recent: (reviewsData as any)?.reviews?.slice(0, 5) || [],
+          totalCount: (reviewsData as any)?.totalReviewCount || 0,
+          averageRating: (reviewsData as any)?.averageRating || 0
         },
         insights
       }

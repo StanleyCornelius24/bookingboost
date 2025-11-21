@@ -1,35 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { COMMISSION_RATES } from '@/lib/constants'
-
-export interface ChannelAnalysis {
-  channel: string
-  bookingsCount: number
-  totalRevenue: number
-  percentageOfTotal: number
-  commissionRate: number
-  commissionPaid: number
-  netRevenue: number
-  avgBookingValue: number
-}
-
-export interface ChannelAnalysisData {
-  channels: ChannelAnalysis[]
-  summary: {
-    totalBookings: number
-    totalRevenue: number
-    totalCommissions: number
-    totalNetRevenue: number
-    avgCommissionRate: number
-  }
-  chartData: ChannelChartData[]
-}
-
-export interface ChannelChartData {
-  channel: string
-  grossRevenue: number
-  commission: number
-  netRevenue: number
-}
+import { ChannelAnalysisData, ChannelAnalysis, ChannelChartData } from './channel-analysis-types'
 
 export async function getChannelAnalysis(
   hotelId: string,
@@ -185,33 +156,5 @@ export async function getChannelAnalysis(
   } catch (error) {
     console.error('Error in getChannelAnalysis:', error)
     return null
-  }
-}
-
-export function calculateCommissionBleed(channels: ChannelAnalysis[]): {
-  totalLost: number
-  percentageLost: number
-  biggestOffenders: Array<{ channel: string; amount: number; percentage: number }>
-} {
-  const totalRevenue = channels.reduce((sum, ch) => sum + ch.totalRevenue, 0)
-  const totalCommissions = channels.reduce((sum, ch) => sum + ch.commissionPaid, 0)
-
-  const percentageLost = totalRevenue > 0 ? (totalCommissions / totalRevenue) * 100 : 0
-
-  // Find biggest commission offenders
-  const offenders = channels
-    .filter(ch => ch.commissionPaid > 0)
-    .map(ch => ({
-      channel: ch.channel,
-      amount: ch.commissionPaid,
-      percentage: ch.commissionRate * 100
-    }))
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, 3)
-
-  return {
-    totalLost: totalCommissions,
-    percentageLost,
-    biggestOffenders: offenders
   }
 }

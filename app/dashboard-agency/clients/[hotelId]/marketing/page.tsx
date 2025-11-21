@@ -23,7 +23,8 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts'
-import { MarketingAnalysisData, formatCurrency, formatPercentage, formatNumber } from '@/lib/marketing-analysis'
+import { MarketingAnalysisData } from '@/lib/marketing-analysis-types'
+import { formatCurrency, formatPercentage, formatNumber } from '@/lib/marketing-analysis-client'
 
 export default function MarketingPage() {
   const params = useParams()

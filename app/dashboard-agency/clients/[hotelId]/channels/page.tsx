@@ -23,7 +23,8 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts'
-import { ChannelAnalysisData, ChannelAnalysis, calculateCommissionBleed } from '@/lib/channel-analysis'
+import { ChannelAnalysisData, ChannelAnalysis } from '@/lib/channel-analysis-types'
+import { calculateCommissionBleed } from '@/lib/channel-analysis-client'
 
 interface SortConfig {
   key: keyof ChannelAnalysis

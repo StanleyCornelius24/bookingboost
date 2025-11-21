@@ -19,6 +19,7 @@ export interface ChannelData {
   value: number
   percentage: number
   color: string
+  [key: string]: string | number
 }
 
 export interface RevenueHistoryData {

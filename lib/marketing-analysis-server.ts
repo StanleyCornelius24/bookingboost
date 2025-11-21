@@ -1,36 +1,10 @@
 import { createServerClient } from '@/lib/supabase/server'
-
-export interface MarketingPlatformData {
-  platform: string
-  spend: number
-  clicks: number
-  cpc: number
-  conversions: number
-  roi: number
-  impressions: number
-}
-
-export interface MarketingTrendData {
-  date: string
-  spend: number
-  clicks: number
-  conversions: number
-  impressions: number
-}
-
-export interface MarketingAnalysisData {
-  hasData: boolean
-  summary: {
-    totalSpend: number
-    blendedRoi: number
-    costPerBooking: number
-    directBookings: number
-    totalClicks: number
-    totalConversions: number
-  }
-  platforms: MarketingPlatformData[]
-  trendData: MarketingTrendData[]
-}
+import {
+  MarketingAnalysisData,
+  MarketingPlatformData,
+  MarketingTrendData
+} from './marketing-analysis-types'
+import { calculateMarketingROI } from './marketing-analysis-client'
 
 export async function getMarketingAnalysis(
   hotelId: string,
@@ -64,8 +38,8 @@ export async function getMarketingAnalysis(
       .eq('hotel_id', hotelId)
       .in('service', ['google', 'meta'])
 
-    const hasGoogleAds = apiTokens?.some(token => token.service === 'google')
-    const hasMetaAds = apiTokens?.some(token => token.service === 'meta')
+    const hasGoogleAds = apiTokens?.some(token => token.service === 'google') || false
+    const hasMetaAds = apiTokens?.some(token => token.service === 'meta') || false
 
     // Get marketing metrics from database
     const { data: marketingMetrics, error: metricsError } = await supabase
@@ -306,24 +280,4 @@ function processMarketingMetrics(metrics: any[]): MarketingAnalysisData {
     platforms,
     trendData: Object.values(trendData).sort((a, b) => a.date.localeCompare(b.date))
   }
-}
-
-export function calculateMarketingROI(spend: number, conversions: number, avgBookingValue: number = 120): number {
-  if (spend === 0) return 0
-  return (conversions * avgBookingValue) / spend
-}
-
-export function formatCurrency(amount: number, currency: string = 'ZAR'): string {
-  return new Intl.NumberFormat('en-ZA', {
-    style: 'currency',
-    currency: currency
-  }).format(amount)
-}
-
-export function formatPercentage(value: number): string {
-  return `${value.toFixed(1)}%`
-}
-
-export function formatNumber(value: number): string {
-  return new Intl.NumberFormat('en-ZA').format(value)
 }

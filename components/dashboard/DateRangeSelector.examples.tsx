@@ -110,6 +110,10 @@ export async function GET(request: Request) {
   const from = searchParams.get('from') || getDefaultFrom()
   const to = searchParams.get('to') || getDefaultTo()
 
+  // Example: Get supabase client and hotelId from your auth/context
+  const supabase: any = null // Replace with createServerClient()
+  const hotelId: string = '' // Replace with actual hotelId
+
   // Use date range in database query
   const { data: bookings } = await supabase
     .from('bookings')
@@ -352,8 +356,4 @@ export function VariantComparison() {
 // Placeholder components
 function AgencyDashboardContent() {
   return <div>Agency Dashboard Content</div>
-}
-
-function trackAnalytics(event: string, data: any) {
-  console.log('Analytics:', event, data)
 }

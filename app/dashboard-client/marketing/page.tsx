@@ -14,7 +14,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts'
-import { MarketingAnalysisData } from '@/lib/marketing-analysis'
+import { MarketingAnalysisData } from '@/lib/marketing-analysis-types'
 
 export default function ClientMarketingPage() {
   const [data, setData] = useState<MarketingAnalysisData | null>(null)

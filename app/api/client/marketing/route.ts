@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
-import { getMarketingAnalysis } from '@/lib/marketing-analysis'
+import { getMarketingAnalysis } from '@/lib/marketing-analysis-server'
 
 export async function GET(request: NextRequest) {
   try {

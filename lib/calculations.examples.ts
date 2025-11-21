@@ -330,7 +330,7 @@ async function fetchBookings(hotelId: string): Promise<Booking[]> {
   return []
 }
 
-async function fetchMarketingMetrics(hotelId: string) {
+async function fetchMarketingMetrics(hotelId: string): Promise<Array<{ platform: string; spend: number; clicks: number; conversions: number; attributedRevenue: number }>> {
   // This would fetch from your marketing_metrics table
   return []
 }

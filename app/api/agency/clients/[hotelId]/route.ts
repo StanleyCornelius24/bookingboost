@@ -4,9 +4,10 @@ import { getHotelDetailMetrics } from '@/lib/hotel-detail-data'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { hotelId: string } }
+  { params }: { params: Promise<{ hotelId: string }> }
 ) {
   try {
+    const { hotelId } = await params
     const supabase = await createServerClient()
 
     // Check auth
@@ -27,7 +28,7 @@ export async function GET(
     }
 
     // Fetch hotel detail metrics
-    const data = await getHotelDetailMetrics(params.hotelId)
+    const data = await getHotelDetailMetrics(hotelId)
 
     if (!data) {
       return NextResponse.json({ error: 'Hotel not found' }, { status: 404 })

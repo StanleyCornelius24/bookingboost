@@ -9,7 +9,7 @@
 export * from './calculations'
 
 // Client-side Supabase client only
-export { createBrowserClient } from './supabase/client'
+export { createClient } from './supabase/client'
 
 // Utilities (cn helper)
 export { cn, formatDate, calculateROI, getDateRange } from './utils'

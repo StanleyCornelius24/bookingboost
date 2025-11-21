@@ -2,36 +2,38 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { use } from 'react'
 
 interface TabLayoutProps {
   children: React.ReactNode
-  params: { hotelId: string }
+  params: Promise<{ hotelId: string }>
 }
 
 export default function ClientDetailLayout({ children, params }: TabLayoutProps) {
   const pathname = usePathname()
+  const { hotelId } = use(params)
 
   const tabs = [
     {
       name: 'Overview',
-      href: `/dashboard-agency/clients/${params.hotelId}`,
+      href: `/dashboard-agency/clients/${hotelId}`,
     },
     {
       name: 'Channels',
-      href: `/dashboard-agency/clients/${params.hotelId}/channels`,
+      href: `/dashboard-agency/clients/${hotelId}/channels`,
     },
     {
       name: 'Marketing',
-      href: `/dashboard-agency/clients/${params.hotelId}/marketing`,
+      href: `/dashboard-agency/clients/${hotelId}/marketing`,
     },
     {
       name: 'Reports',
-      href: `/dashboard-agency/clients/${params.hotelId}/reports`,
+      href: `/dashboard-agency/clients/${hotelId}/reports`,
     }
   ]
 
   const isTabActive = (href: string) => {
-    if (href === `/dashboard-agency/clients/${params.hotelId}`) {
+    if (href === `/dashboard-agency/clients/${hotelId}`) {
       return pathname === href
     }
     return pathname.startsWith(href)

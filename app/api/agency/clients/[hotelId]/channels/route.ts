@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
-import { getChannelAnalysis } from '@/lib/channel-analysis'
+import { getChannelAnalysis } from '@/lib/channel-analysis-server'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { hotelId: string } }
+  { params }: { params: Promise<{ hotelId: string }> }
 ) {
   try {
+    const { hotelId } = await params
     const supabase = await createServerClient()
 
     // Check auth
@@ -33,7 +34,7 @@ export async function GET(
 
     // Fetch channel analysis
     const data = await getChannelAnalysis(
-      params.hotelId,
+      hotelId,
       startDate || undefined,
       endDate || undefined
     )

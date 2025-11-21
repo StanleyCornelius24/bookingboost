@@ -1,13 +1,14 @@
 import { cn } from '@/lib/utils'
 
 // Base skeleton components
-function Skeleton({ className }: { className?: string }) {
+function Skeleton({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <div
       className={cn(
         'animate-pulse bg-gray-200 rounded',
         className
       )}
+      style={style}
     />
   )
 }
