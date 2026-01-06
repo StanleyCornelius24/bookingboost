@@ -3,29 +3,38 @@ import { createServerClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('[Settings GET] Request received')
     const supabase = await createServerClient()
 
     // Check auth
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
+      console.log('[Settings GET] No session found')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    console.log('[Settings GET] Session found, user ID:', session.user.id)
 
     // Get the user's hotel with all marketing-related fields
     const { data: hotel, error } = await supabase
       .from('hotels')
       .select(`
         id,
+        website,
         google_analytics_property_id,
         google_ads_customer_id,
         google_ads_manager_id,
         meta_ad_account_id,
-        last_marketing_sync
+        last_settings_sync
       `)
       .eq('user_id', session.user.id)
       .single()
 
     if (error || !hotel) {
+      console.error('Settings GET - Hotel lookup failed:', {
+        error,
+        userId: session.user.id,
+        hasHotel: !!hotel
+      })
       return NextResponse.json({ error: 'Hotel not found' }, { status: 404 })
     }
 
@@ -83,6 +92,7 @@ export async function PUT(request: NextRequest) {
     // Parse the request body
     const body = await request.json()
     const {
+      website,
       google_analytics_property_id,
       google_ads_customer_id,
       google_ads_manager_id,
@@ -90,14 +100,17 @@ export async function PUT(request: NextRequest) {
     } = body
 
     // Update the hotel record
+    const now = new Date().toISOString()
     const { error: updateError } = await supabase
       .from('hotels')
       .update({
+        website,
         google_analytics_property_id,
         google_ads_customer_id,
         google_ads_manager_id,
         meta_ad_account_id,
-        updated_at: new Date().toISOString()
+        updated_at: now,
+        last_settings_sync: now
       })
       .eq('id', hotel.id)
 

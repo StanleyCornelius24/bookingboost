@@ -184,6 +184,22 @@ export async function getClientChannelsAnalysis(
       return getEmptyChannelsData(hotel.currency || 'ZAR')
     }
 
+    // Fetch commission rates for this hotel
+    const { data: commissionRates } = await supabase
+      .from('commission_rates')
+      .select('channel_name, commission_rate, is_active')
+      .eq('hotel_id', hotelId)
+
+    // Create a map of channel names to commission rates
+    const commissionRateMap = new Map<string, number>()
+    if (commissionRates) {
+      commissionRates.forEach(rate => {
+        if (rate.is_active) {
+          commissionRateMap.set(rate.channel_name, rate.commission_rate)
+        }
+      })
+    }
+
     // Initialize all channels with zero values
     const channelGroups = new Map<string, {
       bookings: number
@@ -214,8 +230,12 @@ export async function getClientChannelsAnalysis(
       const group = channelGroups.get(channel)!
       group.bookings += 1
       group.revenue += booking.revenue
-      group.commissionPaid += booking.commission_amount || 0
-      totalCommissions += booking.commission_amount || 0
+
+      // Calculate commission based on current commission rate
+      const commissionRate = commissionRateMap.get(channel) || 0
+      const commissionAmount = booking.revenue * commissionRate
+      group.commissionPaid += commissionAmount
+      totalCommissions += commissionAmount
 
       // Calculate lead time (days between booking_date and checkin_date)
       if (booking.booking_date && booking.checkin_date) {

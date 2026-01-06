@@ -1,21 +1,10 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
-import {
-  LayoutDashboard,
-  TrendingUp,
-  Target,
-  LineChart,
-  HelpCircle,
-  FileText,
-  Upload,
-  LogOut,
-  BarChart3,
-  List,
-  Settings
-} from 'lucide-react'
-import { requireUserRole } from '@/lib/get-user-role'
+import { cookies } from 'next/headers'
+import { requireUserRole, getImpersonatedUserInfo } from '@/lib/get-user-role'
 import AIChatbot from '@/components/chatbot/AIChatbot'
+import ClientNav from '@/components/dashboard/ClientNav'
+import ImpersonationBanner from '@/components/admin/ImpersonationBanner'
 
 export default async function ClientDashboardLayout({
   children,
@@ -33,25 +22,27 @@ export default async function ClientDashboardLayout({
   try {
     const { role, hotel } = await requireUserRole()
 
-    // Redirect non-client users to their appropriate dashboard
-    if (role === 'admin') {
-      redirect('/dashboard-admin')
-    } else if (role !== 'client') {
-      redirect('/dashboard-agency')
+    // Check if impersonating - if so, skip redirect checks for admin
+    const cookieStore = await cookies()
+    const isImpersonating = cookieStore.get('impersonate_user_id')?.value
+
+    // Only redirect if NOT impersonating
+    if (!isImpersonating) {
+      // Redirect non-client users to their appropriate dashboard
+      if (role === 'admin') {
+        redirect('/dashboard-admin')
+      } else if (role !== 'client') {
+        redirect('/dashboard-agency')
+      }
     }
 
-    // Client-specific navigation - friendly, outcome-focused labels
+    // Client-specific navigation - performance areas + core functions
     const navigation = [
-      { name: 'Overview', href: '/dashboard-client', icon: LayoutDashboard },
-      { name: 'Upload Bookings', href: '/dashboard-client/upload', icon: Upload },
-      { name: 'All Bookings', href: '/dashboard-client/bookings', icon: List },
-      { name: 'Booking Channels', href: '/dashboard-client/channels', icon: TrendingUp },
-      { name: 'Period Comparison', href: '/dashboard-client/analytics', icon: BarChart3 },
-      { name: 'Your Marketing', href: '/dashboard-client/marketing', icon: Target },
-      { name: 'Your Progress', href: '/dashboard-client/progress', icon: LineChart },
-      { name: 'Questions & Answers', href: '/dashboard-client/faq', icon: HelpCircle },
-      { name: 'Reports', href: '/dashboard-client/reports', icon: FileText },
-      { name: 'Settings', href: '/dashboard-client/settings', icon: Settings },
+      { name: 'Booking Performance', href: '/dashboard-client', icon: 'TrendingUp' },
+      { name: 'Marketing Performance', href: '/dashboard-client/marketing', icon: 'Target' },
+      { name: 'OTA Performance', href: '/dashboard-client/channels', icon: 'LineChart' },
+      { name: 'Bookings', href: '/dashboard-client/bookings', icon: 'List' },
+      { name: 'Settings', href: '/dashboard-client/settings', icon: 'Settings' },
     ]
 
     const handleSignOut = async () => {
@@ -61,54 +52,22 @@ export default async function ClientDashboardLayout({
       redirect('/login')
     }
 
+    // Check for impersonation
+    const impersonationInfo = await getImpersonatedUserInfo()
+
     return (
       <div className="min-h-screen bg-off-white">
-        {/* Client Sidebar with clean, friendly styling */}
-        <div className="fixed inset-y-0 left-0 w-64 bg-card border-r border-border">
-          <div className="flex flex-col h-full">
-            {/* Logo */}
-            <div className="flex items-center justify-center h-16 border-b border-border">
-              <h1 className="text-2xl font-bold text-brand-navy">Booking<span className="text-brand-gold">Boost</span></h1>
-            </div>
+        {/* Impersonation Banner */}
+        {impersonationInfo && (
+          <ImpersonationBanner userEmail={hotel.email} role={impersonationInfo.role} />
+        )}
 
-            {/* Role Indicator - Hotel Name */}
-            <div className="p-4 border-b border-border bg-brand-gold/5">
-              <p className="text-xs text-brand-navy/60 uppercase tracking-wider font-medium mb-1">Your Hotel</p>
-              <p className="text-base font-semibold text-brand-navy font-accent">{hotel?.name}</p>
-            </div>
+        {/* Client Navigation */}
+        <ClientNav hotel={hotel} navigation={navigation} onSignOut={handleSignOut} />
 
-            {/* Navigation */}
-            <nav className="flex-1 p-4 space-y-1">
-              {navigation.map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className="flex items-center px-3 py-2.5 text-sm font-light text-brand-navy rounded-lg hover:bg-brand-gold/10 hover:text-brand-navy transition-all duration-200 group"
-                >
-                  <item.icon className="mr-3 h-4 w-4 text-brand-navy/60 group-hover:text-brand-gold transition-colors" />
-                  {item.name}
-                </Link>
-              ))}
-            </nav>
-
-            {/* Sign Out */}
-            <div className="p-4 border-t border-border">
-              <form action={handleSignOut}>
-                <button
-                  type="submit"
-                  className="flex items-center w-full px-3 py-2.5 text-sm font-light text-brand-navy/70 rounded-lg hover:bg-brand-navy/5 hover:text-brand-navy transition-all duration-200"
-                >
-                  <LogOut className="mr-3 h-4 w-4" />
-                  Sign Out
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="pl-64">
-          <main className="p-10">
+        {/* Main Content - responsive padding */}
+        <div className="lg:pl-64" style={impersonationInfo ? { paddingTop: '40px' } : {}}>
+          <main className="p-4 sm:p-6 lg:p-10">
             {children}
           </main>
         </div>
@@ -118,6 +77,17 @@ export default async function ClientDashboardLayout({
       </div>
     )
   } catch (error) {
+    // Check if impersonating - if there's an error during impersonation, exit it
+    const cookieStore = await cookies()
+    const isImpersonating = cookieStore.get('impersonate_user_id')?.value
+
+    if (isImpersonating) {
+      // Clear impersonation cookies and redirect to admin
+      cookieStore.delete('impersonate_user_id')
+      cookieStore.delete('impersonate_role')
+      redirect('/dashboard-admin')
+    }
+
     // If no hotel exists, redirect to onboard page
     redirect('/onboard')
   }

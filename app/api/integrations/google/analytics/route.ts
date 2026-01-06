@@ -89,11 +89,61 @@ export async function GET(request: NextRequest) {
         }],
         metrics: [
           { name: 'sessions' },
-          { name: 'activeUsers' }
+          { name: 'activeUsers' },
+          { name: 'conversions' },
+          { name: 'totalRevenue' },
+          { name: 'advertiserAdCost' }
         ],
         dimensions: [
           { name: 'sessionDefaultChannelGrouping' }
         ]
+      }
+    })
+
+    // Get device category data
+    const deviceResponse = await analyticsData.properties.runReport({
+      property: `properties/${analyticsPropertyId}`,
+      requestBody: {
+        dateRanges: [{
+          startDate,
+          endDate
+        }],
+        metrics: [
+          { name: 'sessions' },
+          { name: 'activeUsers' }
+        ],
+        dimensions: [
+          { name: 'deviceCategory' }
+        ]
+      }
+    })
+
+    // Get top 10 countries
+    const countryResponse = await analyticsData.properties.runReport({
+      property: `properties/${analyticsPropertyId}`,
+      requestBody: {
+        dateRanges: [{
+          startDate,
+          endDate
+        }],
+        metrics: [
+          { name: 'sessions' },
+          { name: 'activeUsers' },
+          { name: 'conversions' },
+          { name: 'totalRevenue' }
+        ],
+        dimensions: [
+          { name: 'country' }
+        ],
+        orderBys: [
+          {
+            metric: {
+              metricName: 'sessions'
+            },
+            desc: true
+          }
+        ],
+        limit: '10'
       }
     })
 
@@ -118,7 +168,22 @@ export async function GET(request: NextRequest) {
       trafficSources: sourceResponse.data.rows?.map(row => ({
         source: row.dimensionValues?.[0]?.value,
         sessions: parseInt(row.metricValues?.[0]?.value || '0'),
+        users: parseInt(row.metricValues?.[1]?.value || '0'),
+        conversions: parseInt(row.metricValues?.[2]?.value || '0'),
+        revenue: parseFloat(row.metricValues?.[3]?.value || '0'),
+        cost: parseFloat(row.metricValues?.[4]?.value || '0')
+      })) || [],
+      devices: deviceResponse.data.rows?.map(row => ({
+        device: row.dimensionValues?.[0]?.value,
+        sessions: parseInt(row.metricValues?.[0]?.value || '0'),
         users: parseInt(row.metricValues?.[1]?.value || '0')
+      })) || [],
+      topCountries: countryResponse.data.rows?.map(row => ({
+        country: row.dimensionValues?.[0]?.value,
+        sessions: parseInt(row.metricValues?.[0]?.value || '0'),
+        users: parseInt(row.metricValues?.[1]?.value || '0'),
+        conversions: parseInt(row.metricValues?.[2]?.value || '0'),
+        revenue: parseFloat(row.metricValues?.[3]?.value || '0')
       })) || []
     }
 

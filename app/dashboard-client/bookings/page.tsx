@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Calendar, Search } from 'lucide-react'
+import { Calendar, Search, Upload } from 'lucide-react'
+import Link from 'next/link'
 
 interface Booking {
   id: string
@@ -104,8 +105,8 @@ export default function BookingsListPage() {
     return (
       <div className="space-y-8">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-64 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-96"></div>
+          <div className="h-10 bg-soft-gray rounded-xl w-64 mb-4"></div>
+          <div className="h-5 bg-soft-gray rounded-lg w-96"></div>
         </div>
       </div>
     )
@@ -115,8 +116,10 @@ export default function BookingsListPage() {
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">All Bookings</h1>
-          <p className="text-red-600">{error}</p>
+          <h1 className="text-4xl font-bold text-brand-navy">All Bookings</h1>
+          <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl">
+            <p className="font-medium">{error}</p>
+          </div>
         </div>
       </div>
     )
@@ -125,40 +128,49 @@ export default function BookingsListPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">All Bookings</h1>
-        <p className="text-gray-600 mt-2 text-lg">
-          View all uploaded bookings ({bookings.length} loaded{totalInDatabase > 0 && totalInDatabase !== bookings.length ? ` of ${totalInDatabase} total` : ''})
-        </p>
-        {totalInDatabase > bookings.length && (
-          <div className="mt-2 bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 rounded-lg">
-            Warning: Only showing {bookings.length} of {totalInDatabase} bookings. Some records may not be loading.
-          </div>
-        )}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
+        <div>
+          <h1 className="text-4xl font-bold text-brand-navy tracking-tight">All Bookings</h1>
+          <p className="text-brand-navy/60 mt-3 text-base font-book">
+            View all uploaded bookings ({bookings.length} loaded{totalInDatabase > 0 && totalInDatabase !== bookings.length ? ` of ${totalInDatabase} total` : ''})
+          </p>
+          {totalInDatabase > bookings.length && (
+            <div className="mt-3 bg-sunset-peach/10 border border-sunset-orange/30 text-sunset-orange px-5 py-3 rounded-xl text-sm font-medium">
+              Warning: Only showing {bookings.length} of {totalInDatabase} bookings. Some records may not be loading.
+            </div>
+          )}
+        </div>
+        <Link
+          href="/dashboard-client/upload"
+          className="inline-flex items-center px-6 py-3.5 bg-brand-gold text-brand-navy text-sm font-semibold rounded-xl hover:bg-brand-gold/90 hover:shadow-md transition-all shadow-sm whitespace-nowrap"
+        >
+          <Upload className="h-4 w-4 mr-2" />
+          Upload Bookings
+        </Link>
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-soft-gray">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4.5 w-4.5 text-brand-navy/40" />
             <input
               type="text"
               placeholder="Search channel, guest, or date..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-11 pr-4 py-3 border border-soft-gray rounded-xl focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold transition-all font-book text-sm"
             />
           </div>
 
           {/* Sort By */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
+            <label className="block text-xs font-semibold text-brand-navy/60 uppercase tracking-wider mb-2">Sort By</label>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as 'booking_date' | 'checkin_date')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-soft-gray rounded-xl focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold transition-all font-book text-sm"
             >
               <option value="booking_date">Booking Date</option>
               <option value="checkin_date">Check-in Date</option>
@@ -167,11 +179,11 @@ export default function BookingsListPage() {
 
           {/* Sort Order */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Order</label>
+            <label className="block text-xs font-semibold text-brand-navy/60 uppercase tracking-wider mb-2">Order</label>
             <select
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-soft-gray rounded-xl focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold transition-all font-book text-sm"
             >
               <option value="desc">Newest First</option>
               <option value="asc">Oldest First</option>
@@ -181,70 +193,70 @@ export default function BookingsListPage() {
       </div>
 
       {/* Bookings Table */}
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-soft-gray overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-golden-cream/20 border-b border-soft-gray">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-brand-navy/60 uppercase tracking-wider">
                   Hotel Name
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-brand-navy/60 uppercase tracking-wider">
                   Channel
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-brand-navy/60 uppercase tracking-wider">
                   Booking Date
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-brand-navy/60 uppercase tracking-wider">
                   Check-in Date
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-brand-navy/60 uppercase tracking-wider">
                   Checkout Date
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-brand-navy/60 uppercase tracking-wider">
                   Guest
                 </th>
-                <th className="px-6 py-4 text-right text-sm font-medium text-gray-500 uppercase">
+                <th className="px-6 py-4 text-right text-xs font-semibold text-brand-navy/60 uppercase tracking-wider">
                   Revenue
                 </th>
-                <th className="px-6 py-4 text-center text-sm font-medium text-gray-500 uppercase">
+                <th className="px-6 py-4 text-center text-xs font-semibold text-brand-navy/60 uppercase tracking-wider">
                   Nights
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-soft-gray">
               {filteredAndSortedBookings.map((booking) => (
-                <tr key={booking.id} className="hover:bg-gray-50">
+                <tr key={booking.id} className="hover:bg-golden-cream/10 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <span className="font-medium text-gray-900">
+                    <span className="font-semibold text-brand-navy">
                       {hotelName || 'N/A'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <span className={`font-medium ${
+                    <span className={`font-semibold px-3 py-1.5 rounded-lg ${
                       booking.channel?.toLowerCase().includes('direct')
-                        ? 'text-green-600'
-                        : 'text-blue-600'
+                        ? 'bg-forest-green/10 text-forest-green'
+                        : 'bg-tropical-teal/10 text-tropical-teal'
                     }`}>
                       {booking.channel}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-navy font-book">
                     {formatDate(booking.booking_date)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-navy font-book">
                     {formatDate(booking.checkin_date)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-navy font-book">
                     {formatDate(booking.checkout_date)}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
+                  <td className="px-6 py-4 text-sm text-brand-navy font-book">
                     {booking.guest_name || 'N/A'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-brand-navy">
                     {formatCurrency(booking.revenue)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-brand-navy">
                     {booking.nights || 'N/A'}
                   </td>
                 </tr>
@@ -254,37 +266,48 @@ export default function BookingsListPage() {
         </div>
 
         {filteredAndSortedBookings.length === 0 && (
-          <div className="text-center py-12">
-            <Calendar className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No bookings found</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              {searchTerm ? 'Try adjusting your search criteria' : 'Upload bookings to get started'}
+          <div className="text-center py-16">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-brand-navy/5 mb-4">
+              <Calendar className="h-8 w-8 text-brand-navy/40" />
+            </div>
+            <h3 className="text-base font-semibold text-brand-navy">No bookings found</h3>
+            <p className="mt-2 text-sm font-book text-brand-navy/60 max-w-md mx-auto">
+              {searchTerm ? 'Try adjusting your search criteria to find what you\'re looking for' : 'Upload your booking data to start tracking performance'}
             </p>
+            {!searchTerm && bookings.length === 0 && (
+              <Link
+                href="/dashboard-client/upload"
+                className="inline-flex items-center mt-6 px-6 py-3 bg-brand-gold text-brand-navy text-sm font-semibold rounded-xl hover:bg-brand-gold/90 hover:shadow-md transition-all shadow-sm"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Your First Bookings
+              </Link>
+            )}
           </div>
         )}
       </div>
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border">
-          <div className="text-sm text-gray-600 mb-1">Total Bookings</div>
-          <div className="text-2xl font-bold text-gray-900">{filteredAndSortedBookings.length}</div>
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-soft-gray hover:shadow-md transition-shadow">
+          <div className="text-xs font-semibold text-brand-navy/60 uppercase tracking-wider mb-2">Total Bookings</div>
+          <div className="text-3xl font-bold text-brand-navy">{filteredAndSortedBookings.length}</div>
         </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border">
-          <div className="text-sm text-gray-600 mb-1">Total Revenue</div>
-          <div className="text-2xl font-bold text-gray-900">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-soft-gray hover:shadow-md transition-shadow">
+          <div className="text-xs font-semibold text-brand-navy/60 uppercase tracking-wider mb-2">Total Revenue</div>
+          <div className="text-3xl font-bold text-brand-navy">
             {formatCurrency(filteredAndSortedBookings.reduce((sum, b) => sum + b.revenue, 0))}
           </div>
         </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border">
-          <div className="text-sm text-gray-600 mb-1">Direct Bookings</div>
-          <div className="text-2xl font-bold text-green-600">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-soft-gray hover:shadow-md transition-shadow">
+          <div className="text-xs font-semibold text-brand-navy/60 uppercase tracking-wider mb-2">Direct Bookings</div>
+          <div className="text-3xl font-bold text-forest-green">
             {filteredAndSortedBookings.filter(b => b.channel?.toLowerCase().includes('direct') || b.commission_rate === 0).length}
           </div>
         </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border">
-          <div className="text-sm text-gray-600 mb-1">OTA Bookings</div>
-          <div className="text-2xl font-bold text-blue-600">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-soft-gray hover:shadow-md transition-shadow">
+          <div className="text-xs font-semibold text-brand-navy/60 uppercase tracking-wider mb-2">OTA Bookings</div>
+          <div className="text-3xl font-bold text-tropical-teal">
             {filteredAndSortedBookings.filter(b => !b.channel?.toLowerCase().includes('direct') && b.commission_rate > 0).length}
           </div>
         </div>

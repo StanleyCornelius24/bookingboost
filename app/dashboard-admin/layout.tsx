@@ -1,6 +1,8 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   Users,
   Building2,
@@ -25,6 +27,20 @@ export default async function AdminDashboardLayout({
   }
 
   try {
+    // Check if impersonating - if so, redirect to the impersonated user's dashboard
+    const cookieStore = await cookies()
+    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
+    const impersonateRole = cookieStore.get('impersonate_role')?.value
+
+    if (impersonateUserId && impersonateRole) {
+      // Redirect to the impersonated user's dashboard
+      if (impersonateRole === 'agency') {
+        redirect('/dashboard-agency')
+      } else if (impersonateRole === 'client') {
+        redirect('/dashboard-client')
+      }
+    }
+
     const { role, hotel } = await requireUserRole()
 
     // Only allow admin users
@@ -58,8 +74,15 @@ export default async function AdminDashboardLayout({
         <div className="fixed inset-y-0 left-0 w-64 bg-gradient-to-b from-gray-900 to-gray-800 border-r border-gray-700">
           <div className="flex flex-col h-full">
             {/* Logo */}
-            <div className="flex items-center justify-center h-16 border-b border-gray-700">
-              <h1 className="text-2xl font-bold text-white">BookingBoost</h1>
+            <div className="flex items-center justify-center h-20 px-4 py-3 border-b border-gray-700">
+              <Image
+                src="/logo.png"
+                alt="BookingFocus Logo"
+                width={100}
+                height={100}
+                className="object-contain"
+                priority
+              />
             </div>
 
             {/* Role Indicator - Admin */}

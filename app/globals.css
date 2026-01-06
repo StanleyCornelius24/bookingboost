@@ -18,19 +18,40 @@
   --color-card: var(--card-bg);
   --color-border: var(--border);
 
-  /* Brand colors */
+  /* Primary Brand Colors - Focus Online Brand Guide */
   --color-brand-navy: #28384d;
   --color-brand-gold: #ffcc4e;
   --color-off-white: #fafaf8;
 
-  /* Typography */
-  --font-body: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-heading: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Extended Brand Palette - Focus Online Brand Guide */
+  /* Warm Tones */
+  --color-sunset-orange: #ff6b35;
+  --color-sunset-peach: #ffa07a;
+  --color-dune-terracotta: #d4926f;
+  --color-dune-sand: #e8c4a0;
+
+  /* Neutral Tones */
+  --color-golden-cream: #fff5e1;
+  --color-sandy-beige: #f5e6d3;
+  --color-soft-gray: #e5e5e0;
+  --color-stone-gray: #c4c4bd;
+
+  /* Cool Tones */
+  --color-tropical-teal: #4a9b9f;
+  --color-tropical-aqua: #7bccc4;
+  --color-forest-green: #2d5f4d;
+  --color-sage-green: #8fae8d;
+  --color-storm-slate: #5a6c7d;
+  --color-ocean-blue: #3a5a6a;
+
+  /* Typography - Gotham (fallback to Proxima Nova, Montserrat per brand guide) */
+  --font-body: 'Gotham', 'Proxima Nova', 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-heading: 'Gotham', 'Proxima Nova', 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-accent: 'Playfair Display', Georgia, serif;
 
-  /* Font weights */
+  /* Font weights - Gotham hierarchy */
   --font-weight-light: 300;
-  --font-weight-normal: 400;
+  --font-weight-book: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
@@ -40,17 +61,54 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-body);
-  font-weight: var(--font-weight-normal);
+  font-weight: var(--font-weight-book);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
 }
 
+/* Typography Hierarchy - Focus Online Brand Guide */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
   font-weight: var(--font-weight-bold);
   color: var(--foreground);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
+h1 {
+  font-size: 2.5rem;
+  font-weight: var(--font-weight-bold);
+}
+
+h2 {
+  font-size: 2rem;
+  font-weight: var(--font-weight-semibold);
+}
+
+h3 {
+  font-size: 1.1rem;
+  font-weight: var(--font-weight-semibold);
+}
+
+h4 {
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-medium);
+}
+
+/* Accent font for special headings */
 .font-accent {
   font-family: var(--font-accent);
+  letter-spacing: -0.01em;
+}
+
+/* Light weight for subtle text */
+.font-light {
+  font-weight: var(--font-weight-light);
+}
+
+/* Book weight for body text */
+.font-book {
+  font-weight: var(--font-weight-book);
 }

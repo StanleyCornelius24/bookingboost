@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 
 function LoginForm() {
   const [email, setEmail] = useState('')
@@ -44,9 +45,18 @@ function LoginForm() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow">
-        <div>
-          <h2 className="text-3xl font-bold text-center">BookingBoost</h2>
-          <p className="mt-2 text-center text-gray-600">Sign in to your account</p>
+        <div className="text-center">
+          <div className="flex justify-center mb-4">
+            <Image
+              src="/logo.png"
+              alt="BookingFocus Logo"
+              width={120}
+              height={120}
+              className="object-contain"
+              priority
+            />
+          </div>
+          <p className="mt-2 text-gray-600">Sign in to your account</p>
         </div>
         
         <form onSubmit={handleLogin} className="mt-8 space-y-6">

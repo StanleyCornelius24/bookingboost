@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server'
+import { cookies } from 'next/headers'
 import type { Hotel } from '@/types'
 
 export async function getUserRole(): Promise<'agency' | 'client' | 'admin' | null> {
@@ -9,6 +10,15 @@ export async function getUserRole(): Promise<'agency' | 'client' | 'admin' | nul
 
     if (!session) {
       return null
+    }
+
+    // Check for impersonation
+    const cookieStore = await cookies()
+    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
+    const impersonateRole = cookieStore.get('impersonate_role')?.value
+
+    if (impersonateUserId && impersonateRole) {
+      return impersonateRole as 'agency' | 'client' | 'admin'
     }
 
     // Get hotel info for current user
@@ -40,11 +50,16 @@ export async function getUserHotel(): Promise<Hotel | null> {
       return null
     }
 
-    // Get complete hotel info for current user
+    // Check for impersonation
+    const cookieStore = await cookies()
+    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
+
+    // Get complete hotel info for current user or impersonated user
+    const userId = impersonateUserId || session.user.id
     const { data: hotel, error } = await supabase
       .from('hotels')
       .select('*')
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .single()
 
     if (error) {
@@ -69,5 +84,30 @@ export async function requireUserRole(): Promise<{ role: 'agency' | 'client' | '
   return {
     role: hotel.user_role || 'client',
     hotel
+  }
+}
+
+export async function isImpersonating(): Promise<boolean> {
+  try {
+    const cookieStore = await cookies()
+    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
+    return !!impersonateUserId
+  } catch (error) {
+    return false
+  }
+}
+
+export async function getImpersonatedUserInfo(): Promise<{ userId: string; role: string } | null> {
+  try {
+    const cookieStore = await cookies()
+    const userId = cookieStore.get('impersonate_user_id')?.value
+    const role = cookieStore.get('impersonate_role')?.value
+
+    if (userId && role) {
+      return { userId, role }
+    }
+    return null
+  } catch (error) {
+    return null
   }
 }

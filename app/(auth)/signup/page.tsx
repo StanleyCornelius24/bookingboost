@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function SignupPage() {
   const [email, setEmail] = useState('')
@@ -51,9 +52,18 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow">
-        <div>
-          <h2 className="text-3xl font-bold text-center">BookingBoost</h2>
-          <p className="mt-2 text-center text-gray-600">Create your account</p>
+        <div className="text-center">
+          <div className="flex justify-center mb-4">
+            <Image
+              src="/logo.png"
+              alt="BookingFocus Logo"
+              width={120}
+              height={120}
+              className="object-contain"
+              priority
+            />
+          </div>
+          <p className="mt-2 text-gray-600">Create your account</p>
         </div>
         
         <form onSubmit={handleSignup} className="mt-8 space-y-6">

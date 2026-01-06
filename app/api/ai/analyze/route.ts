@@ -6,7 +6,7 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
-const SYSTEM_PROMPT = `You are a data analyst assistant for a hotel booking management system. You help hotel managers understand their booking data by analyzing their database.
+const SYSTEM_PROMPT = `You are a friendly data analyst assistant for a hotel booking management system. You help hotel managers understand their booking data by analyzing their database.
 
 Available tables and schema:
 - bookings: id, hotel_id, guest_name, guest_email, check_in, check_out, total_amount, booking_source, status, created_at, nights, guest_count
@@ -16,7 +16,7 @@ Available tables and schema:
 Your task is to:
 1. Understand the user's question about their booking data
 2. Generate a safe, read-only SQL query to answer the question
-3. Provide a clear, conversational explanation of the results
+3. Provide a clear, conversational explanation in natural language (NOT JSON)
 
 IMPORTANT RULES:
 - ONLY generate SELECT queries (no INSERT, UPDATE, DELETE, DROP, etc.)
@@ -25,12 +25,14 @@ IMPORTANT RULES:
 - Return results in a format that's easy to understand
 - If a question is unclear, ask for clarification
 
-Respond in JSON format:
+Respond ONLY with a JSON object (no markdown, no code blocks):
 {
   "sql": "SELECT ... FROM bookings WHERE hotel_id = $1",
   "explanation": "I'm analyzing your bookings to find...",
   "needsHotelId": true
 }
+
+The "explanation" field must be plain conversational text, not JSON or formatted data.
 
 If you cannot generate a safe query, respond with:
 {
@@ -80,16 +82,27 @@ export async function POST(request: NextRequest) {
 
     const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
 
-    // Parse Claude's response
+    // Parse Claude's response (strip markdown code fences if present)
     let aiResponse
     try {
-      aiResponse = JSON.parse(responseText)
+      // Remove markdown code fences if present
+      const cleanedText = responseText
+        .replace(/^```json\n/, '')
+        .replace(/^```\n/, '')
+        .replace(/\n```$/, '')
+        .trim()
+
+      aiResponse = JSON.parse(cleanedText)
     } catch (e) {
+      console.error('Failed to parse AI response:', e)
+      console.error('Response text:', responseText)
       return NextResponse.json({
-        answer: responseText,
+        answer: "I had trouble understanding the data format. Please try asking your question in a different way.",
         data: null
       })
     }
+
+    console.log('Parsed AI response:', JSON.stringify(aiResponse, null, 2))
 
     // If there's an error from Claude
     if (aiResponse.error) {
@@ -109,30 +122,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Execute the query safely
+    console.log('Executing query:', sql)
     try {
-      const { data, error } = await supabase.rpc('execute_safe_query', {
+      const { data: queryResult, error } = await supabase.rpc('execute_safe_query', {
         query_text: sql,
         hotel_id_param: hotel.id
       })
 
+      console.log('Query result:', queryResult)
+      console.log('Query error:', error)
+
       if (error) {
         console.error('Query execution error:', error)
-
-        // Try direct query if RPC doesn't exist
-        const directResult = await executeQueryDirectly(supabase, sql, hotel.id)
-
-        if (directResult.error) {
-          return NextResponse.json({
-            answer: "I encountered an error analyzing your data. Please try rephrasing your question.",
-            data: null
-          })
-        }
-
         return NextResponse.json({
-          answer: aiResponse.explanation,
-          data: directResult.data
+          answer: "I encountered an error analyzing your data. Please try rephrasing your question.\n\nError: " + error.message,
+          data: null
         })
       }
+
+      // Parse the JSON result from the function
+      const data = queryResult ? (typeof queryResult === 'string' ? JSON.parse(queryResult) : queryResult) : []
 
       // Format the answer with the data
       let answer = aiResponse.explanation
@@ -194,23 +203,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function executeQueryDirectly(supabase: any, sql: string, hotelId: string) {
-  try {
-    // Replace $1 with actual hotel_id
-    const queryWithParams = sql.replace(/\$1/g, `'${hotelId}'`)
-
-    // Execute via raw SQL
-    const { data, error } = await supabase.from('bookings').select('*').limit(0)
-
-    // Since we can't execute raw SQL directly through Supabase client,
-    // we'll use the from() method with filters based on common patterns
-
-    // This is a simplified version - in production, you'd want to use a database function
-    return { data: [], error: null }
-  } catch (error) {
-    return { data: null, error }
-  }
-}
 
 function formatKey(key: string): string {
   return key

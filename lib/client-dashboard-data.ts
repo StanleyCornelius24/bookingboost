@@ -16,6 +16,7 @@ export interface ClientDashboardData {
     marketingRoi: number
   }
   revenueHistory: RevenueHistoryPoint[]
+  monthlyBreakdown: MonthlyBreakdown[]
   insight: {
     type: 'success' | 'warning' | 'info'
     title: string
@@ -27,6 +28,19 @@ export interface ClientDashboardData {
 export interface RevenueHistoryPoint {
   month: string
   revenue: number
+  directRevenue: number
+  otaRevenue: number
+}
+
+export interface MonthlyBreakdown {
+  month: string
+  monthKey: string
+  directBookings: number
+  directRevenue: number
+  otaBookings: number
+  otaRevenue: number
+  totalBookings: number
+  totalRevenue: number
 }
 
 export async function getClientDashboardData(hotelId: string): Promise<ClientDashboardData | null> {
@@ -46,31 +60,40 @@ export async function getClientDashboardData(hotelId: string): Promise<ClientDas
     }
 
     const now = new Date()
-    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    // Change default to last month vs previous month
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
     const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
+    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+    const previousMonthEnd = new Date(now.getFullYear(), now.getMonth() - 1, 0)
 
-    // Get current month bookings
+    // Helper function to format dates without timezone issues
+    const formatDate = (date: Date) => {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+
+    // Get last month bookings (primary period)
     const { data: currentBookings, error: currentError } = await supabase
       .from('bookings')
       .select('*')
       .eq('hotel_id', hotelId)
-      .gte('booking_date', currentMonthStart.toISOString().split('T')[0])
-      .lte('booking_date', currentMonthEnd.toISOString().split('T')[0])
+      .gte('booking_date', formatDate(lastMonthStart))
+      .lte('booking_date', formatDate(lastMonthEnd))
 
     if (currentError) {
       console.error('Error fetching current bookings:', currentError)
       return null
     }
 
-    // Get last month bookings
+    // Get previous month bookings (comparison period)
     const { data: lastMonthBookings, error: lastMonthError } = await supabase
       .from('bookings')
       .select('*')
       .eq('hotel_id', hotelId)
-      .gte('booking_date', lastMonthStart.toISOString().split('T')[0])
-      .lte('booking_date', lastMonthEnd.toISOString().split('T')[0])
+      .gte('booking_date', formatDate(previousMonthStart))
+      .lte('booking_date', formatDate(previousMonthEnd))
 
     if (lastMonthError) {
       console.error('Error fetching last month bookings:', lastMonthError)
@@ -88,16 +111,13 @@ export async function getClientDashboardData(hotelId: string): Promise<ClientDas
     ).length || 0
 
     const directBookingsPercentage = totalBookings > 0 ? (directBookings / totalBookings) * 100 : 0
-    const directBookingsGoal = 70 // Target 70% direct bookings
+    const directBookingsGoal = 30 // Target 30% direct bookings
 
     // Calculate money saved (what OTA commissions would have been if all were OTA)
     const avgOtaCommissionRate = 0.15 // 15% average OTA commission
     const potentialOtaCommissions = thisMonthRevenue * avgOtaCommissionRate
     const actualCommissions = currentBookings?.reduce((sum, booking) => sum + (booking.commission_amount || 0), 0) || 0
     const moneySaved = potentialOtaCommissions - actualCommissions
-
-    // Generate 18 months of revenue history with actual data
-    const revenueHistory: RevenueHistoryPoint[] = []
 
     // Fetch all bookings for the last 18 months using batch fetching
     const eighteenMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 17, 1)
@@ -120,7 +140,7 @@ export async function getClientDashboardData(hotelId: string): Promise<ClientDas
 
       const { data } = await supabase
         .from('bookings')
-        .select('booking_date, revenue')
+        .select('booking_date, revenue, channel, commission_rate')
         .eq('hotel_id', hotelId)
         .gte('booking_date', eighteenMonthsAgo.toISOString().split('T')[0])
         .range(historyFrom, historyTo)
@@ -130,29 +150,52 @@ export async function getClientDashboardData(hotelId: string): Promise<ClientDas
       }
     }
 
-    // Group bookings by month
-    const monthlyRevenue = new Map<string, number>()
+    // Generate monthly breakdown for last 18 months (for both chart and table)
+    const monthlyBreakdown: MonthlyBreakdown[] = []
 
-    if (allHistoricalBookings.length > 0) {
-      allHistoricalBookings.forEach(booking => {
-        const bookingDate = new Date(booking.booking_date)
-        const monthKey = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`
-        const currentRevenue = monthlyRevenue.get(monthKey) || 0
-        monthlyRevenue.set(monthKey, currentRevenue + booking.revenue)
-      })
-    }
-
-    // Build the revenue history array
     for (let i = 17; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1)
+      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0)
+      const monthName = monthDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      const monthKey = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`
 
-      revenueHistory.push({
+      // Filter bookings for this month
+      const monthBookings = allHistoricalBookings.filter(booking => {
+        const bookingDate = new Date(booking.booking_date)
+        return bookingDate >= monthStart && bookingDate <= monthEnd
+      })
+
+      // Separate direct and OTA bookings
+      const directBookingsMonth = monthBookings.filter(booking =>
+        booking.channel?.toLowerCase().includes('direct') ||
+        booking.commission_rate === 0
+      )
+
+      const otaBookingsMonth = monthBookings.filter(booking =>
+        !booking.channel?.toLowerCase().includes('direct') &&
+        booking.commission_rate !== 0
+      )
+
+      monthlyBreakdown.push({
         month: monthName,
-        revenue: monthlyRevenue.get(monthKey) || 0
+        monthKey,
+        directBookings: directBookingsMonth.length,
+        directRevenue: directBookingsMonth.reduce((sum, b) => sum + (b.revenue || 0), 0),
+        otaBookings: otaBookingsMonth.length,
+        otaRevenue: otaBookingsMonth.reduce((sum, b) => sum + (b.revenue || 0), 0),
+        totalBookings: monthBookings.length,
+        totalRevenue: monthBookings.reduce((sum, b) => sum + (b.revenue || 0), 0)
       })
     }
+
+    // Build revenue history from monthly breakdown (use same data for chart and table)
+    const revenueHistory: RevenueHistoryPoint[] = monthlyBreakdown.map(month => ({
+      month: month.month,
+      revenue: month.totalRevenue,
+      directRevenue: month.directRevenue,
+      otaRevenue: month.otaRevenue
+    }))
 
     // Check if this is the best month this year
     const bestMonthThisYear = revenueHistory.every(point => point.revenue <= thisMonthRevenue)
@@ -184,6 +227,7 @@ export async function getClientDashboardData(hotelId: string): Promise<ClientDas
         marketingRoi
       },
       revenueHistory,
+      monthlyBreakdown: monthlyBreakdown.slice(-12), // Only last 12 months for table
       insight
     }
 
