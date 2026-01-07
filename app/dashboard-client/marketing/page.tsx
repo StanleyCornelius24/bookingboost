@@ -77,6 +77,8 @@ export default function ClientMarketingPage() {
   const [ga4Loading, setGa4Loading] = useState(true)
   const [adsLoading, setAdsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [ga4Error, setGa4Error] = useState<string | null>(null)
+  const [adsError, setAdsError] = useState<string | null>(null)
   const [lastSync, setLastSync] = useState<string | null>(null)
 
   useEffect(() => {
@@ -115,6 +117,7 @@ export default function ClientMarketingPage() {
 
   const fetchGA4Data = async () => {
     setGa4Loading(true)
+    setGa4Error(null)
 
     try {
       const response = await fetch('/api/integrations/google/analytics?startDate=30daysAgo&endDate=today')
@@ -143,11 +146,23 @@ export default function ClientMarketingPage() {
           hasData: analyticsData.overview && analyticsData.overview.length > 0
         })
       } else {
-        // If GA4 not configured or fails, set empty state
+        // Capture actual error message from API
+        const errorData = await response.json()
+        let errorMessage = errorData.error || `Failed to fetch GA4 data (${response.status})`
+        // Add details if available for more context
+        if (errorData.details) {
+          errorMessage += `: ${errorData.details}`
+        }
+        if (errorData.originalError) {
+          errorMessage += ` (${errorData.originalError})`
+        }
+        setGa4Error(errorMessage)
         setGa4Data({ totalSessions: 0, totalUsers: 0, totalPageviews: 0, totalEngagedSessions: 0, engagementRate: 0, trafficSources: [], devices: [], topCountries: [], hasData: false })
       }
     } catch (err) {
       console.error('Failed to fetch GA4 data:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Network error fetching GA4 data'
+      setGa4Error(errorMessage)
       setGa4Data({ totalSessions: 0, totalUsers: 0, totalPageviews: 0, totalEngagedSessions: 0, engagementRate: 0, trafficSources: [], devices: [], topCountries: [], hasData: false })
     } finally {
       setGa4Loading(false)
@@ -156,6 +171,7 @@ export default function ClientMarketingPage() {
 
   const fetchGoogleAdsData = async () => {
     setAdsLoading(true)
+    setAdsError(null)
 
     try {
       // Calculate dates for last 30 days
@@ -175,11 +191,23 @@ export default function ClientMarketingPage() {
           hasData: adsData.summary && (adsData.summary.totalSpend > 0 || adsData.summary.totalClicks > 0)
         })
       } else {
-        // If Google Ads not configured or fails, set empty state
+        // Capture actual error message from API
+        const errorData = await response.json()
+        let errorMessage = errorData.error || `Failed to fetch Google Ads data (${response.status})`
+        // Add details if available for more context
+        if (errorData.details) {
+          errorMessage += `: ${errorData.details}`
+        }
+        if (errorData.originalError) {
+          errorMessage += ` (${errorData.originalError})`
+        }
+        setAdsError(errorMessage)
         setGoogleAdsData({ totalSpend: 0, totalClicks: 0, totalImpressions: 0, totalConversions: 0, currency: 'ZAR', hasData: false })
       }
     } catch (err) {
       console.error('Failed to fetch Google Ads data:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Network error fetching Google Ads data'
+      setAdsError(errorMessage)
       setGoogleAdsData({ totalSpend: 0, totalClicks: 0, totalImpressions: 0, totalConversions: 0, currency: 'ZAR', hasData: false })
     } finally {
       setAdsLoading(false)
@@ -289,6 +317,101 @@ export default function ClientMarketingPage() {
           )}
         </div>
       </div>
+
+      {/* Integration Error Banners */}
+      {(ga4Error || adsError) && (
+        <div className="space-y-4">
+          {ga4Error && (
+            <div className="bg-red-50 border border-red-200 p-4 rounded-xl">
+              <div className="flex items-start">
+                <AlertTriangle className="h-5 w-5 text-red-600 mr-3 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-red-900 mb-1">Google Analytics Error</h3>
+                  <p className="text-sm text-red-800">{ga4Error}</p>
+                  {ga4Error.includes('not connected') && (
+                    <button
+                      onClick={() => router.push('/dashboard-client/settings')}
+                      className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                    >
+                      Connect Google Analytics
+                    </button>
+                  )}
+                  {ga4Error.includes('not configured') && (
+                    <button
+                      onClick={() => router.push('/dashboard-client/settings')}
+                      className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                    >
+                      Configure Analytics Property ID
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          {adsError && (
+            <div className="bg-red-50 border border-red-200 p-4 rounded-xl">
+              <div className="flex items-start">
+                <AlertTriangle className="h-5 w-5 text-red-600 mr-3 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-red-900 mb-1">Google Ads Error</h3>
+                  <p className="text-sm text-red-800 mb-2">{adsError}</p>
+                  {(adsError.includes('not connected') || adsError.includes('refresh token')) && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-red-700">
+                        {adsError.includes('refresh token')
+                          ? 'Your Google connection needs to be refreshed with Google Ads permissions.'
+                          : 'Connect your Google account to access Google Ads data.'}
+                      </p>
+                      <button
+                        onClick={() => router.push('/dashboard-client/settings')}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                      >
+                        Reconnect Google Account
+                      </button>
+                    </div>
+                  )}
+                  {adsError.includes('not configured') && !adsError.includes('refresh token') && (
+                    <button
+                      onClick={() => router.push('/dashboard-client/settings')}
+                      className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                    >
+                      Configure Ads Customer ID
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Loading States */}
+      {(ga4Loading || adsLoading) && (
+        <div className="space-y-4">
+          {ga4Loading && (
+            <div className="bg-tropical-aqua/10 border border-tropical-aqua/30 p-4 rounded-xl">
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-tropical-teal mr-3"></div>
+                <div>
+                  <h3 className="text-sm font-semibold text-brand-navy">Fetching website traffic stats...</h3>
+                  <p className="text-xs text-brand-navy/60 mt-0.5">Loading Google Analytics data</p>
+                </div>
+              </div>
+            </div>
+          )}
+          {adsLoading && (
+            <div className="bg-tropical-aqua/10 border border-tropical-aqua/30 p-4 rounded-xl">
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-tropical-teal mr-3"></div>
+                <div>
+                  <h3 className="text-sm font-semibold text-brand-navy">Fetching Google Ads data...</h3>
+                  <p className="text-xs text-brand-navy/60 mt-0.5">Loading campaign performance</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* BIG WARNING - Always visible at top */}
       <div className="bg-brand-gold/10 border border-brand-gold/30 p-6 rounded-2xl sticky top-0 z-10 backdrop-blur-sm">

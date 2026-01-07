@@ -9,7 +9,9 @@ import {
   CheckCircle,
   AlertTriangle,
   Info,
-  BarChart3
+  BarChart3,
+  Upload,
+  Clock
 } from 'lucide-react'
 import {
   AreaChart,
@@ -171,6 +173,34 @@ export default function ClientDashboardPage() {
           Compare Periods
         </button>
       </div>
+
+      {/* Latest Booking Date Banner */}
+      {data.latestBookingDate && (
+        <div className="bg-brand-gold/10 border border-brand-gold/30 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-brand-gold/20 rounded-lg flex items-center justify-center">
+              <Clock className="h-5 w-5 text-brand-navy" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-brand-navy">Latest Booking Date</p>
+              <p className="text-xs text-brand-navy/70 font-book">
+                {new Date(data.latestBookingDate).toLocaleDateString('en-ZA', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric'
+                })}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => router.push('/dashboard-client/bookings')}
+            className="flex items-center px-4 py-2 text-sm font-semibold bg-brand-navy text-white rounded-lg hover:bg-brand-navy/90 transition-colors shadow-sm"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Upload Latest Booking Sheet
+          </button>
+        </div>
+      )}
 
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-brand-navy via-brand-navy to-ocean-blue rounded-2xl p-6 md:p-8 text-white shadow-lg">

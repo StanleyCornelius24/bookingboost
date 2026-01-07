@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Building2, Mail, Calendar, Edit2, Trash2, Save, X } from 'lucide-react'
+import { Building2, Mail, Calendar, Edit2, Trash2, Save, X, BarChart2, TrendingUp, ExternalLink } from 'lucide-react'
 
 interface Hotel {
   id: string
@@ -11,6 +11,7 @@ interface Hotel {
   currency: string
   user_id: string
   created_at: string
+  website?: string
   booking_engine?: string
   google_analytics_property_id?: string
   google_ads_customer_id?: string
@@ -176,9 +177,41 @@ export default function HotelManagement({ initialHotels }: HotelManagementProps)
                       />
                     ) : (
                       <div className="flex items-center">
-                        <Building2 className="h-5 w-5 text-gray-400 mr-3" />
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{hotel.name}</div>
+                        <Building2 className="h-5 w-5 text-gray-400 mr-3 flex-shrink-0" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            {hotel.website ? (
+                              <a
+                                href={hotel.website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                              >
+                                {hotel.name}
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            ) : (
+                              <div className="text-sm font-medium text-gray-900">{hotel.name}</div>
+                            )}
+                            <div className="flex items-center gap-1">
+                              {hotel.google_analytics_property_id && (
+                                <div className="group relative">
+                                  <BarChart2 className="h-4 w-4 text-green-600" />
+                                  <span className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded whitespace-nowrap">
+                                    Google Analytics
+                                  </span>
+                                </div>
+                              )}
+                              {hotel.google_ads_customer_id && (
+                                <div className="group relative">
+                                  <TrendingUp className="h-4 w-4 text-purple-600" />
+                                  <span className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded whitespace-nowrap">
+                                    Google Ads
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                           <div className="text-sm text-gray-500">ID: {hotel.id.slice(0, 8)}...</div>
                         </div>
                       </div>

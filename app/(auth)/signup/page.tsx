@@ -50,8 +50,8 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow">
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#28384d' }}>
+      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-xl">
         <div className="text-center">
           <div className="flex justify-center mb-4">
             <Image
@@ -65,14 +65,14 @@ export default function SignupPage() {
           </div>
           <p className="mt-2 text-gray-600">Create your account</p>
         </div>
-        
+
         <form onSubmit={handleSignup} className="mt-8 space-y-6">
           {error && (
             <div className="bg-red-50 text-red-600 p-3 rounded text-sm">
               {error}
             </div>
           )}
-          
+
           <div>
             <label htmlFor="hotelName" className="block text-sm font-medium text-gray-700">
               Hotel Name
@@ -83,7 +83,10 @@ export default function SignupPage() {
               required
               value={hotelName}
               onChange={(e) => setHotelName(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
+              style={{ borderColor: '#d1d5db' }}
+              onFocus={(e) => e.target.style.borderColor = '#28384d'}
+              onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
             />
           </div>
 
@@ -97,7 +100,10 @@ export default function SignupPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
+              style={{ borderColor: '#d1d5db' }}
+              onFocus={(e) => e.target.style.borderColor = '#28384d'}
+              onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
             />
           </div>
 
@@ -111,7 +117,10 @@ export default function SignupPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
+              style={{ borderColor: '#d1d5db' }}
+              onFocus={(e) => e.target.style.borderColor = '#28384d'}
+              onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
               minLength={6}
             />
           </div>
@@ -119,18 +128,40 @@ export default function SignupPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+            style={{ backgroundColor: '#28384d' }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1f2937'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#28384d'}
           >
             {loading ? 'Creating account...' : 'Sign up'}
           </button>
 
           <p className="text-center text-sm text-gray-600">
             Already have an account?{' '}
-            <Link href="/login" className="text-blue-600 hover:text-blue-500">
+            <Link
+              href="/login"
+              className="font-medium hover:underline"
+              style={{ color: '#ffcc4e' }}
+            >
               Sign in
             </Link>
           </p>
         </form>
+
+        <div className="mt-8 pt-6 border-t border-gray-200">
+          <p className="text-center text-xs text-gray-500">
+            Powered by{' '}
+            <a
+              href="https://www.focusonline.co.za"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium hover:underline"
+              style={{ color: '#ffcc4e' }}
+            >
+              Focus Online Travel
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   )

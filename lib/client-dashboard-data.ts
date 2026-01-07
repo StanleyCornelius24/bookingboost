@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 
 export interface ClientDashboardData {
+  latestBookingDate: string | null
   hero: {
     thisMonthRevenue: number
     lastMonthRevenue: number
@@ -203,6 +204,17 @@ export async function getClientDashboardData(hotelId: string): Promise<ClientDas
     // Calculate marketing ROI (placeholder for now)
     const marketingRoi = 2.4 // Sample ROI
 
+    // Get the latest booking date
+    const { data: latestBooking } = await supabase
+      .from('bookings')
+      .select('booking_date')
+      .eq('hotel_id', hotelId)
+      .order('booking_date', { ascending: false })
+      .limit(1)
+      .single()
+
+    const latestBookingDate = latestBooking?.booking_date || null
+
     // Generate insight
     const insight = generateInsight(
       directBookingsPercentage,
@@ -212,6 +224,7 @@ export async function getClientDashboardData(hotelId: string): Promise<ClientDas
     )
 
     return {
+      latestBookingDate,
       hero: {
         thisMonthRevenue,
         lastMonthRevenue,

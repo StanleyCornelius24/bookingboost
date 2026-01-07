@@ -1,17 +1,8 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
-import Link from 'next/link'
-import Image from 'next/image'
-import {
-  Users,
-  Building2,
-  Settings,
-  BarChart3,
-  Shield,
-  LogOut
-} from 'lucide-react'
 import { requireUserRole } from '@/lib/get-user-role'
+import AdminNav from '@/components/admin/AdminNav'
 
 export default async function AdminDashboardLayout({
   children,
@@ -26,21 +17,21 @@ export default async function AdminDashboardLayout({
     redirect('/login')
   }
 
-  try {
-    // Check if impersonating - if so, redirect to the impersonated user's dashboard
-    const cookieStore = await cookies()
-    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
-    const impersonateRole = cookieStore.get('impersonate_role')?.value
+  // Check if impersonating - if so, redirect to the impersonated user's dashboard
+  const cookieStore = await cookies()
+  const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
+  const impersonateRole = cookieStore.get('impersonate_role')?.value
 
-    if (impersonateUserId && impersonateRole) {
-      // Redirect to the impersonated user's dashboard
-      if (impersonateRole === 'agency') {
-        redirect('/dashboard-agency')
-      } else if (impersonateRole === 'client') {
-        redirect('/dashboard-client')
-      }
+  if (impersonateUserId && impersonateRole) {
+    // Redirect to the impersonated user's dashboard
+    if (impersonateRole === 'agency') {
+      redirect('/dashboard-agency')
+    } else if (impersonateRole === 'client') {
+      redirect('/dashboard-client')
     }
+  }
 
+  try {
     const { role, hotel } = await requireUserRole()
 
     // Only allow admin users
@@ -55,10 +46,10 @@ export default async function AdminDashboardLayout({
 
     // Admin navigation
     const navigation = [
-      { name: 'Dashboard', href: '/dashboard-admin', icon: BarChart3 },
-      { name: 'All Hotels', href: '/dashboard-admin/hotels', icon: Building2 },
-      { name: 'All Users', href: '/dashboard-admin/users', icon: Users },
-      { name: 'System Settings', href: '/dashboard-admin/settings', icon: Settings },
+      { name: 'Dashboard', href: '/dashboard-admin', icon: 'BarChart3' },
+      { name: 'All Hotels', href: '/dashboard-admin/hotels', icon: 'Building2' },
+      { name: 'All Users', href: '/dashboard-admin/users', icon: 'Users' },
+      { name: 'System Settings', href: '/dashboard-admin/settings', icon: 'Settings' },
     ]
 
     const handleSignOut = async () => {
@@ -70,72 +61,32 @@ export default async function AdminDashboardLayout({
 
     return (
       <div className="min-h-screen bg-gray-50">
-        {/* Admin Sidebar */}
-        <div className="fixed inset-y-0 left-0 w-64 bg-gradient-to-b from-gray-900 to-gray-800 border-r border-gray-700">
-          <div className="flex flex-col h-full">
-            {/* Logo */}
-            <div className="flex items-center justify-center h-20 px-4 py-3 border-b border-gray-700">
-              <Image
-                src="/logo.png"
-                alt="BookingFocus Logo"
-                width={100}
-                height={100}
-                className="object-contain"
-                priority
-              />
-            </div>
+        {/* Admin Navigation */}
+        <AdminNav navigation={navigation} onSignOut={handleSignOut} />
 
-            {/* Role Indicator - Admin */}
-            <div className="p-4 border-b border-gray-700">
-              <div className="flex items-center">
-                <Shield className="h-5 w-5 text-red-400 mr-2" />
-                <div className="px-3 py-1.5 bg-red-600 text-white rounded-lg font-semibold text-sm">
-                  ADMIN
-                </div>
-              </div>
-              <p className="mt-2 text-lg font-semibold text-white">Admin Dashboard</p>
-              <p className="text-xs text-gray-400 mt-1">Full system access</p>
-            </div>
-
-            {/* Navigation */}
-            <nav className="flex-1 p-4 space-y-1">
-              {navigation.map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className="flex items-center px-4 py-3 text-sm font-medium text-gray-300 rounded-lg hover:bg-gray-700 hover:text-white transition-colors duration-200"
-                >
-                  <item.icon className="mr-3 h-5 w-5" />
-                  {item.name}
-                </Link>
-              ))}
-            </nav>
-
-            {/* Sign Out */}
-            <div className="p-4 border-t border-gray-700">
-              <form action={handleSignOut}>
-                <button
-                  type="submit"
-                  className="flex items-center w-full px-4 py-3 text-sm font-medium text-gray-300 rounded-lg hover:bg-gray-700 hover:text-white transition-colors duration-200"
-                >
-                  <LogOut className="mr-3 h-5 w-5" />
-                  Sign Out
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="pl-64">
-          <main className="p-8">
+        {/* Main Content - responsive padding */}
+        <div className="lg:pl-64">
+          <main className="p-4 sm:p-6 lg:p-8">
             {children}
           </main>
         </div>
       </div>
     )
   } catch (error) {
-    // If no hotel exists, redirect to onboard page
-    redirect('/onboard')
+    // Log the error for debugging
+    console.error('Admin dashboard layout error:', error)
+
+    // Only redirect to onboard if hotel doesn't exist
+    // For other errors, sign out to clear any corrupted session state
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+
+    if (errorMessage.includes('Hotel not found')) {
+      redirect('/onboard')
+    } else {
+      // Clear session and redirect to login for other errors
+      const supabase = await createServerClient()
+      await supabase.auth.signOut()
+      redirect('/login')
+    }
   }
 }

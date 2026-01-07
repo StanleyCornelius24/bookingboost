@@ -1,6 +1,8 @@
 import { GoogleAdsApi } from 'google-ads-api'
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
+import { cookies } from 'next/headers'
+import { getGoogleApiTokens } from '@/lib/get-google-tokens'
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,23 +19,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get hotel and API token
+    // Check for impersonation
+    const cookieStore = await cookies()
+    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
+    const userId = impersonateUserId || session.user.id
+
+    // Get hotel
     const { data: hotel } = await supabase
       .from('hotels')
       .select('id, google_ads_customer_id, google_ads_manager_id')
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .single()
 
     if (!hotel) {
       return NextResponse.json({ error: 'Hotel not found' }, { status: 404 })
     }
 
-    const { data: apiToken } = await supabase
-      .from('api_tokens')
-      .select('*')
-      .eq('hotel_id', hotel.id)
-      .eq('service', 'google')
-      .single()
+    // Get API token with fallback to admin tokens when impersonating
+    const apiToken = await getGoogleApiTokens(hotel.id, session)
 
     if (!apiToken) {
       return NextResponse.json({ error: 'Google account not connected' }, { status: 404 })

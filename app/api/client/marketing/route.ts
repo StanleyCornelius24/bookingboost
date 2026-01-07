@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { getMarketingAnalysis } from '@/lib/marketing-analysis-server'
+import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,11 +13,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Check for impersonation
+    const cookieStore = await cookies()
+    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
+    const userId = impersonateUserId || session.user.id
+
     // Get the user's hotel
     const { data: hotel } = await supabase
       .from('hotels')
       .select('id, user_role')
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .single()
 
     if (!hotel) {

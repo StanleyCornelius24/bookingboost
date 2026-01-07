@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
+import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,7 +13,13 @@ export async function GET(request: NextRequest) {
       console.log('[Settings GET] No session found')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    console.log('[Settings GET] Session found, user ID:', session.user.id)
+
+    // Check for impersonation
+    const cookieStore = await cookies()
+    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
+    const userId = impersonateUserId || session.user.id
+
+    console.log('[Settings GET] Session found, user ID:', session.user.id, 'Effective user ID:', userId, 'Impersonating:', !!impersonateUserId)
 
     // Get the user's hotel with all marketing-related fields
     const { data: hotel, error } = await supabase
@@ -26,7 +33,7 @@ export async function GET(request: NextRequest) {
         meta_ad_account_id,
         last_settings_sync
       `)
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .single()
 
     if (error || !hotel) {
@@ -78,11 +85,16 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Check for impersonation
+    const cookieStore = await cookies()
+    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
+    const userId = impersonateUserId || session.user.id
+
     // Get the user's hotel ID
     const { data: hotel } = await supabase
       .from('hotels')
       .select('id')
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .single()
 
     if (!hotel) {

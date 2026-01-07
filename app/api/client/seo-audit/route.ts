@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
+import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const websiteUrl = searchParams.get('url')
+    const forceRefresh = searchParams.get('refresh') === 'true'
 
     const supabase = await createServerClient()
     const { data: { session } } = await supabase.auth.getSession()
@@ -13,20 +15,52 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Check for impersonation
+    const cookieStore = await cookies()
+    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
+    const userId = impersonateUserId || session.user.id
+
+    // Get hotel
+    const { data: hotel } = await supabase
+      .from('hotels')
+      .select('id, website')
+      .eq('user_id', userId)
+      .single()
+
+    if (!hotel) {
+      return NextResponse.json({ error: 'Hotel not found' }, { status: 404 })
+    }
+
     // Get hotel website URL if not provided
     let targetUrl = websiteUrl
     if (!targetUrl) {
-      const { data: hotel } = await supabase
-        .from('hotels')
-        .select('website')
-        .eq('user_id', session.user.id)
-        .single()
-
       if (!hotel?.website) {
         return NextResponse.json({ error: 'Website URL not configured' }, { status: 400 })
       }
 
       targetUrl = hotel.website
+    }
+
+    // Check if we have a recent cached audit (and not forcing refresh)
+    if (!forceRefresh) {
+      const { data: cachedAudit } = await supabase
+        .from('seo_audits')
+        .select('*')
+        .eq('hotel_id', hotel.id)
+        .order('timestamp', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (cachedAudit) {
+        console.log('Returning cached SEO audit from:', cachedAudit.timestamp)
+        return NextResponse.json({
+          url: cachedAudit.url,
+          timestamp: cachedAudit.timestamp,
+          overallScore: cachedAudit.overall_score,
+          checks: cachedAudit.checks,
+          fromCache: true
+        })
+      }
     }
 
     // This should never happen due to checks above, but TypeScript needs explicit null check
@@ -355,6 +389,24 @@ export async function GET(request: NextRequest) {
     const passCount = checks.filter((check: any) => check.status === 'pass').length
     const totalChecks = checks.filter((check: any) => check.status !== 'info').length
     auditResults.overallScore = Math.round((passCount / totalChecks) * 100)
+
+    // Save audit results to database
+    const { error: saveError } = await supabase
+      .from('seo_audits')
+      .insert({
+        hotel_id: hotel.id,
+        url: targetUrl,
+        timestamp: auditResults.timestamp,
+        overall_score: auditResults.overallScore,
+        checks: auditResults.checks
+      })
+
+    if (saveError) {
+      console.error('Failed to save SEO audit to database:', saveError)
+      // Don't fail the request, just log the error
+    } else {
+      console.log('SEO audit saved to database for hotel:', hotel.id)
+    }
 
     return NextResponse.json(auditResults)
 

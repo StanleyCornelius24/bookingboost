@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
 
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: 'offline',
+      prompt: 'consent', // Force consent screen to always get a refresh token
       scope: scopes,
       state: hotel.id // Pass hotel ID to identify which hotel this is for
     })

@@ -28,18 +28,29 @@ export async function PATCH(
 
     const body = await request.json()
 
+    console.log('[Hotel Update] Updating hotel:', hotelId, 'with data:', body)
+
     // Update hotel
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('hotels')
       .update(body)
       .eq('id', hotelId)
+      .select()
 
-    if (error) throw error
+    if (error) {
+      console.error('[Hotel Update] Database error:', error)
+      throw error
+    }
 
-    return NextResponse.json({ success: true })
+    console.log('[Hotel Update] Success:', data)
+    return NextResponse.json({ success: true, data })
   } catch (error) {
-    console.error('Error updating hotel:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('[Hotel Update] Error updating hotel:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error'
+    return NextResponse.json({
+      error: errorMessage,
+      details: error instanceof Error ? error.stack : undefined
+    }, { status: 500 })
   }
 }
 

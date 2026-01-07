@@ -50,11 +50,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Check for impersonation
+    const { cookies: cookiesFn } = await import('next/headers')
+    const cookieStore = await cookiesFn()
+    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
+    const userId = impersonateUserId || session.user.id
+
     // Get user's hotel
     const { data: hotel } = await supabase
       .from('hotels')
       .select('id, name, currency')
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .single()
 
     if (!hotel) {

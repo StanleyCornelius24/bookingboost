@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
+import { cookies } from 'next/headers'
 
 export async function GET() {
   const supabase = await createServerClient()
@@ -13,11 +14,16 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // Check for impersonation
+  const cookieStore = await cookies()
+  const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
+  const userId = impersonateUserId || user.id
+
   // Get hotel
   const { data: hotel } = await supabase
     .from('hotels')
     .select('id, name')
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .single()
 
   if (!hotel) {

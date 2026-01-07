@@ -50,13 +50,29 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createServerClient()
 
+    // If no refresh token in response, try to preserve the existing one
+    let finalRefreshToken = tokens.refresh_token
+    if (!finalRefreshToken) {
+      const { data: existingToken } = await supabase
+        .from('api_tokens')
+        .select('refresh_token')
+        .eq('hotel_id', state)
+        .eq('service', 'google')
+        .maybeSingle()
+
+      if (existingToken?.refresh_token) {
+        console.log('Preserving existing refresh token')
+        finalRefreshToken = existingToken.refresh_token
+      }
+    }
+
     // Store the tokens in the database
     // Prepare the data object - only include user_email if the column exists
     const tokenData: any = {
       hotel_id: state,
       service: 'google',
       access_token: tokens.access_token!,
-      refresh_token: tokens.refresh_token || null,
+      refresh_token: finalRefreshToken || null,
       expires_at: tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null
     }
 
@@ -64,6 +80,8 @@ export async function GET(request: NextRequest) {
     if (userInfo.data.email) {
       tokenData.user_email = userInfo.data.email
     }
+
+    console.log('Storing tokens with refresh_token:', finalRefreshToken ? 'Present' : 'Missing')
 
     const { error: insertError } = await supabase
       .from('api_tokens')

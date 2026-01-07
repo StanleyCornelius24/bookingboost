@@ -69,11 +69,12 @@ export default function SEOPage() {
     }
   }
 
-  const fetchAuditData = async () => {
+  const fetchAuditData = async (forceRefresh = false) => {
     setAuditLoading(true)
     setAuditError(null)
     try {
-      const response = await fetch('/api/client/seo-audit')
+      const url = forceRefresh ? '/api/client/seo-audit?refresh=true' : '/api/client/seo-audit'
+      const response = await fetch(url)
       if (response.ok) {
         const data = await response.json()
         setAuditData(data)
@@ -379,17 +380,37 @@ export default function SEOPage() {
             </p>
           </div>
           <button
-            onClick={fetchAuditData}
+            onClick={() => fetchAuditData(true)}
             disabled={auditLoading}
             className="flex items-center px-4 py-2 text-sm font-semibold bg-tropical-aqua/20 text-tropical-teal rounded-lg hover:bg-tropical-aqua/30 transition-colors border border-tropical-aqua/30 disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${auditLoading ? 'animate-spin' : ''}`} />
-            {auditLoading ? 'Checking...' : 'Refresh'}
+            {auditLoading ? 'Running Audit...' : 'Run New Audit'}
           </button>
         </div>
 
         {auditData && (
           <>
+            {/* Last Run Date - Prominent Display */}
+            <div className="px-6 py-4 bg-golden-cream/20 border-b border-soft-gray">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-semibold text-brand-navy/70">Last audit run:</span>
+                <span className="font-bold text-brand-navy">
+                  {new Date(auditData.timestamp).toLocaleString('en-ZA', {
+                    weekday: 'short',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+                {auditData.fromCache && (
+                  <span className="text-xs text-brand-navy/50 italic">(from cache)</span>
+                )}
+              </div>
+            </div>
+
             {/* Overall Score */}
             <div className="px-6 py-5 bg-tropical-aqua/5 border-b border-soft-gray">
               <div className="flex items-center justify-between">

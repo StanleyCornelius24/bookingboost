@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { google } from 'googleapis'
+import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,11 +16,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Check for impersonation
+    const cookieStore = await cookies()
+    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
+    const userId = impersonateUserId || session.user.id
+
     // Get hotel and API token
     const { data: hotel } = await supabase
       .from('hotels')
       .select('id, google_analytics_property_id')
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .single()
 
     if (!hotel) {
