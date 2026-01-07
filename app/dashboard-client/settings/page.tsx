@@ -301,27 +301,55 @@ export default function ClientSettingsPage() {
 
   const handleConnectGoogle = async () => {
     try {
+      setLoading(true)
+      setMessage(null)
+
       const response = await fetch('/api/integrations/google/auth')
       const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to initiate Google authentication')
+      }
+
       if (data.authUrl) {
         window.location.href = data.authUrl
+      } else {
+        throw new Error('No authentication URL received')
       }
     } catch (error) {
       console.error('Error connecting Google:', error)
-      setMessage({ type: 'error', text: 'Failed to connect Google account' })
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Failed to connect Google account'
+      })
+      setLoading(false)
     }
   }
 
   const handleConnectMeta = async () => {
     try {
+      setLoading(true)
+      setMessage(null)
+
       const response = await fetch('/api/integrations/meta/auth')
       const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to initiate Meta authentication')
+      }
+
       if (data.authUrl) {
         window.location.href = data.authUrl
+      } else {
+        throw new Error('No authentication URL received')
       }
     } catch (error) {
       console.error('Error connecting Meta:', error)
-      setMessage({ type: 'error', text: 'Failed to connect Meta account' })
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Failed to connect Meta account'
+      })
+      setLoading(false)
     }
   }
 
@@ -644,10 +672,11 @@ export default function ClientSettingsPage() {
           <div>
             <button
               onClick={handleConnectGoogle}
-              className="inline-flex items-center px-5 py-2.5 bg-brand-navy text-white text-sm font-medium rounded-lg hover:bg-brand-navy/90 transition-all"
+              disabled={loading}
+              className="inline-flex items-center px-5 py-2.5 bg-brand-navy text-white text-sm font-medium rounded-lg hover:bg-brand-navy/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ExternalLink className="h-4 w-4 mr-2" />
-              {googleConnected ? 'Reconnect Google Account' : 'Connect Google Account'}
+              {loading ? 'Connecting...' : googleConnected ? 'Reconnect Google Account' : 'Connect Google Account'}
             </button>
           </div>
 
@@ -759,10 +788,11 @@ export default function ClientSettingsPage() {
           <div>
             <button
               onClick={handleConnectMeta}
-              className="inline-flex items-center px-5 py-2.5 bg-brand-navy text-white text-sm font-medium rounded-lg hover:bg-brand-navy/90 transition-all"
+              disabled={loading}
+              className="inline-flex items-center px-5 py-2.5 bg-brand-navy text-white text-sm font-medium rounded-lg hover:bg-brand-navy/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ExternalLink className="h-4 w-4 mr-2" />
-              {metaConnected ? 'Reconnect Meta Account' : 'Connect Meta Account'}
+              {loading ? 'Connecting...' : metaConnected ? 'Reconnect Meta Account' : 'Connect Meta Account'}
             </button>
           </div>
 
