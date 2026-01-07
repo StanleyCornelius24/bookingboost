@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, TrendingUp, FileText, Link as LinkIcon, Eye, Activity, MousePointerClick, CheckCircle2, XCircle, AlertTriangle, Info, RefreshCw } from 'lucide-react'
+import { Search, TrendingUp, Eye, Activity, MousePointerClick, CheckCircle2, XCircle, AlertTriangle, Info, RefreshCw } from 'lucide-react'
 
 interface SEOData {
   organicTraffic: {
@@ -32,6 +32,7 @@ interface SEOAuditData {
   url: string
   timestamp: string
   overallScore: number
+  fromCache?: boolean
   checks: {
     [key: string]: any
   }
@@ -96,14 +97,6 @@ export default function SEOPage() {
     return new Intl.NumberFormat('en-ZA').format(value)
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-ZA', {
-      style: 'currency',
-      currency: 'ZAR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
