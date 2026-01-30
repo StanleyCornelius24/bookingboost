@@ -887,9 +887,10 @@ export default function ClientMarketingPage() {
 interface ConversionTooltipProps {
   conversionsData: ConversionsData | null
   children: React.ReactNode
+  dateRange: string
 }
 
-function ConversionTooltip({ conversionsData, children }: ConversionTooltipProps) {
+function ConversionTooltip({ conversionsData, children, dateRange }: ConversionTooltipProps) {
   const [showPopup, setShowPopup] = useState(false)
 
   if (!conversionsData || conversionsData.conversions.length === 0) {
@@ -922,7 +923,7 @@ function ConversionTooltip({ conversionsData, children }: ConversionTooltipProps
               <div className="flex items-center justify-between p-6 border-b border-soft-gray">
                 <div>
                   <h3 className="text-lg font-bold text-brand-navy">Conversion Events</h3>
-                  <p className="text-sm text-brand-navy/60 mt-1">{formatDateRange()}</p>
+                  <p className="text-sm text-brand-navy/60 mt-1">{dateRange}</p>
                 </div>
                 <button
                   onClick={() => setShowPopup(false)}
