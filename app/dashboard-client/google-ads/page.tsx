@@ -262,7 +262,7 @@ export default function GoogleAdsPage() {
                 <span className="text-xs font-semibold uppercase tracking-wider text-brand-navy/60">Conversions</span>
                 <Target className="h-4 w-4 text-brand-gold" />
               </div>
-              <ConversionTooltip conversionsData={conversionsData}>
+              <ConversionTooltip conversionsData={conversionsData} dateRange={formatDateRange()}>
                 <div className="text-2xl font-bold text-brand-navy">
                   {formatNumber(googleAdsData.totalConversions)}
                 </div>
@@ -358,9 +358,10 @@ export default function GoogleAdsPage() {
 interface ConversionTooltipProps {
   conversionsData: ConversionsData | null
   children: React.ReactNode
+  dateRange: string
 }
 
-function ConversionTooltip({ conversionsData, children }: ConversionTooltipProps) {
+function ConversionTooltip({ conversionsData, children, dateRange }: ConversionTooltipProps) {
   const [showPopup, setShowPopup] = useState(false)
 
   if (!conversionsData || conversionsData.conversions.length === 0) {
@@ -393,7 +394,7 @@ function ConversionTooltip({ conversionsData, children }: ConversionTooltipProps
               <div className="flex items-center justify-between p-6 border-b border-soft-gray">
                 <div>
                   <h3 className="text-lg font-bold text-brand-navy">Conversion Events</h3>
-                  <p className="text-sm text-brand-navy/60 mt-1">From Google Analytics ({formatDateRange()})</p>
+                  <p className="text-sm text-brand-navy/60 mt-1">From Google Analytics ({dateRange})</p>
                   <p className="text-xs text-brand-navy/40 mt-1 italic">
                     Note: GA4 conversions may differ from Google Ads due to attribution models
                   </p>
