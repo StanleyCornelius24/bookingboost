@@ -8,7 +8,6 @@ import Image from 'next/image'
 export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [hotelName, setHotelName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -28,7 +27,6 @@ export default function SignupPage() {
         body: JSON.stringify({
           email,
           password,
-          hotelName,
         }),
       })
 
@@ -72,23 +70,6 @@ export default function SignupPage() {
               {error}
             </div>
           )}
-
-          <div>
-            <label htmlFor="hotelName" className="block text-sm font-medium text-gray-700">
-              Hotel Name
-            </label>
-            <input
-              id="hotelName"
-              type="text"
-              required
-              value={hotelName}
-              onChange={(e) => setHotelName(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
-              style={{ borderColor: '#d1d5db' }}
-              onFocus={(e) => e.target.style.borderColor = '#28384d'}
-              onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
-            />
-          </div>
 
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">

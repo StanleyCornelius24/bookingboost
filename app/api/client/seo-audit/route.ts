@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
+import { getSelectedHotel } from '@/lib/get-selected-hotel'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const websiteUrl = searchParams.get('url')
     const forceRefresh = searchParams.get('refresh') === 'true'
+    const selectedHotelId = searchParams.get('hotelId')
 
     const supabase = await createServerClient()
     const { data: { session } } = await supabase.auth.getSession()
@@ -15,30 +16,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check for impersonation
-    const cookieStore = await cookies()
-    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
-    const userId = impersonateUserId || session.user.id
+    // Get the hotel (selected or fallback to primary)
+    const { hotel, error: hotelError, status } = await getSelectedHotel(selectedHotelId, 'id, website')
 
-    // Get hotel
-    const { data: hotel } = await supabase
-      .from('hotels')
-      .select('id, website')
-      .eq('user_id', userId)
-      .single()
-
-    if (!hotel) {
-      return NextResponse.json({ error: 'Hotel not found' }, { status: 404 })
+    if (hotelError || !hotel) {
+      return NextResponse.json({ error: hotelError || 'Hotel not found' }, { status })
     }
+
+    const hotelRecord = hotel as unknown as { id: string; website?: string }
 
     // Get hotel website URL if not provided
     let targetUrl = websiteUrl
     if (!targetUrl) {
-      if (!hotel?.website) {
+      if (!hotelRecord?.website) {
         return NextResponse.json({ error: 'Website URL not configured' }, { status: 400 })
       }
 
-      targetUrl = hotel.website
+      targetUrl = hotelRecord.website
     }
 
     // Check if we have a recent cached audit (and not forcing refresh)
@@ -46,7 +40,7 @@ export async function GET(request: NextRequest) {
       const { data: cachedAudit } = await supabase
         .from('seo_audits')
         .select('*')
-        .eq('hotel_id', hotel.id)
+        .eq('hotel_id', hotelRecord.id)
         .order('timestamp', { ascending: false })
         .limit(1)
         .maybeSingle()
@@ -394,7 +388,7 @@ export async function GET(request: NextRequest) {
     const { error: saveError } = await supabase
       .from('seo_audits')
       .insert({
-        hotel_id: hotel.id,
+        hotel_id: hotelRecord.id,
         url: targetUrl,
         timestamp: auditResults.timestamp,
         overall_score: auditResults.overallScore,
@@ -405,7 +399,7 @@ export async function GET(request: NextRequest) {
       console.error('Failed to save SEO audit to database:', saveError)
       // Don't fail the request, just log the error
     } else {
-      console.log('SEO audit saved to database for hotel:', hotel.id)
+      console.log('SEO audit saved to database for hotel:', hotelRecord.id)
     }
 
     return NextResponse.json(auditResults)

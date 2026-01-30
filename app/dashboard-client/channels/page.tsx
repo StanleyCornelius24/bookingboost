@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Star, TrendingUp } from 'lucide-react'
+import { Star, TrendingUp, Upload, Settings, X, Eye, EyeOff } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import {
   PieChart,
   Pie,
@@ -9,15 +10,26 @@ import {
   ResponsiveContainer
 } from 'recharts'
 import { ClientChannelsAnalysis } from '@/lib/client-channels-data'
+import { useApiUrl } from '@/lib/hooks/use-api-url'
+import { useSelectedHotelId } from '@/lib/hooks/use-selected-hotel-id'
 
 export default function ClientChannelsPage() {
+  const buildUrl = useApiUrl()
+  const { selectedHotelId, isReady } = useSelectedHotelId()
+  const router = useRouter()
   const [data, setData] = useState<ClientChannelsAnalysis | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [showManageChannels, setShowManageChannels] = useState(false)
+  const [allChannels, setAllChannels] = useState<string[]>([])
+  const [hiddenChannels, setHiddenChannels] = useState<string[]>([])
+  const [isLoadingChannels, setIsLoadingChannels] = useState(false)
 
   useEffect(() => {
+    if (!isReady) return
+
     // Set default to previous month and fetch data
     const now = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
@@ -42,7 +54,8 @@ export default function ClientChannelsPage() {
       setError(null)
 
       try {
-        const response = await fetch(`/api/client/channels?startDate=${start}&endDate=${end}`)
+        const url = buildUrl('/api/client/channels', { startDate: start, endDate: end })
+        const response = await fetch(url)
         if (!response.ok) {
           throw new Error('Failed to fetch channels data')
         }
@@ -57,14 +70,15 @@ export default function ClientChannelsPage() {
     }
 
     fetchInitialData()
-  }, [])
+  }, [selectedHotelId, isReady])
 
   const fetchChannelsData = async () => {
     setLoading(true)
     setError(null)
 
     try {
-      const response = await fetch(`/api/client/channels?startDate=${startDate}&endDate=${endDate}`)
+      const url = buildUrl('/api/client/channels', { startDate, endDate })
+      const response = await fetch(url)
       if (!response.ok) {
         throw new Error('Failed to fetch channels data')
       }
@@ -89,6 +103,63 @@ export default function ClientChannelsPage() {
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat('en-ZA').format(value)
+  }
+
+  const fetchAllChannelsAndHidden = async () => {
+    setIsLoadingChannels(true)
+    try {
+      // Fetch all channels from bookings
+      const bookingsUrl = buildUrl('/api/client/bookings/all')
+      const bookingsResponse = await fetch(bookingsUrl)
+      if (bookingsResponse.ok) {
+        const bookingsData = await bookingsResponse.json()
+        const channels = new Set<string>()
+        bookingsData.bookings.forEach((b: any) => {
+          if (b.channel) channels.add(b.channel)
+        })
+        setAllChannels(Array.from(channels).sort())
+      }
+
+      // Fetch hidden channels
+      const hiddenUrl = buildUrl('/api/client/hidden-channels')
+      const hiddenResponse = await fetch(hiddenUrl)
+      if (hiddenResponse.ok) {
+        const hiddenData = await hiddenResponse.json()
+        setHiddenChannels(hiddenData.hiddenChannels || [])
+      }
+    } catch (err) {
+      console.error('Error fetching channels:', err)
+    } finally {
+      setIsLoadingChannels(false)
+    }
+  }
+
+  const handleToggleChannel = async (channelName: string, isHidden: boolean) => {
+    try {
+      if (isHidden) {
+        // Unhide channel
+        const url = buildUrl('/api/client/hidden-channels', { channelName })
+        const response = await fetch(url, { method: 'DELETE' })
+        if (response.ok) {
+          setHiddenChannels(hiddenChannels.filter(c => c !== channelName))
+          fetchChannelsData() // Refresh the data
+        }
+      } else {
+        // Hide channel
+        const url = buildUrl('/api/client/hidden-channels')
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hotelId: selectedHotelId, channelName })
+        })
+        if (response.ok) {
+          setHiddenChannels([...hiddenChannels, channelName])
+          fetchChannelsData() // Refresh the data
+        }
+      }
+    } catch (err) {
+      console.error('Error toggling channel:', err)
+    }
   }
 
   const CustomLabel = ({ cx, cy }: { cx: number; cy: number }) => {
@@ -130,12 +201,53 @@ export default function ClientChannelsPage() {
     )
   }
 
+  // Check if there are no bookings
+  if (data && data.channels && data.channels.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-brand-navy">OTA Performance</h1>
+          <p className="text-brand-navy/60 mt-1 text-sm font-book">See where your bookings come from</p>
+        </div>
+
+        <div className="bg-brand-gold/10 border-2 border-brand-gold/30 rounded-2xl p-8 text-center">
+          <div className="w-16 h-16 bg-brand-gold/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Upload className="h-8 w-8 text-brand-navy" />
+          </div>
+          <h2 className="text-xl font-bold text-brand-navy mb-2">No Bookings Data Available</h2>
+          <p className="text-brand-navy/70 mb-6 max-w-md mx-auto">
+            Upload your booking data to start analyzing channel performance for this hotel.
+          </p>
+          <button
+            onClick={() => router.push('/dashboard-client/upload')}
+            className="inline-flex items-center px-6 py-3 bg-brand-gold text-brand-navy rounded-lg hover:bg-brand-gold/90 transition-colors font-semibold shadow-sm"
+          >
+            <Upload className="h-5 w-5 mr-2" />
+            Upload Bookings
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-brand-navy">OTA Performance</h1>
-        <p className="text-brand-navy/60 mt-1 text-sm font-book">See where your bookings come from</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-brand-navy">OTA Performance</h1>
+          <p className="text-brand-navy/60 mt-1 text-sm font-book">See where your bookings come from</p>
+        </div>
+        <button
+          onClick={() => {
+            fetchAllChannelsAndHidden()
+            setShowManageChannels(true)
+          }}
+          className="inline-flex items-center px-4 py-2 bg-brand-navy text-white rounded-lg hover:bg-brand-navy/90 transition-colors text-sm font-semibold"
+        >
+          <Settings className="h-4 w-4 mr-2" />
+          Manage Channels
+        </button>
       </div>
 
       {/* Date Range Selector */}
@@ -398,6 +510,100 @@ export default function ClientChannelsPage() {
                 Increasing your direct bookings could save you thousands in commission fees.
                 Consider improving your website booking experience and offering direct booking incentives.
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manage Channels Modal */}
+      {showManageChannels && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-soft-gray px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-brand-navy">Manage Channels</h2>
+                <p className="text-sm text-brand-navy/60 mt-1">Hide channels you no longer use</p>
+              </div>
+              <button
+                onClick={() => setShowManageChannels(false)}
+                className="p-2 hover:bg-soft-gray rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5 text-brand-navy/60" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {isLoadingChannels ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-navy mx-auto"></div>
+                  <p className="text-sm text-brand-navy/60 mt-2">Loading channels...</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {allChannels.length === 0 ? (
+                    <p className="text-center text-brand-navy/60 py-8">No channels found</p>
+                  ) : (
+                    allChannels.map((channel) => {
+                      const isHidden = hiddenChannels.includes(channel)
+                      return (
+                        <div
+                          key={channel}
+                          className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
+                            isHidden
+                              ? 'bg-gray-50 border-gray-200'
+                              : 'bg-white border-soft-gray hover:bg-golden-cream/10'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl">{isHidden ? '⚫' : '✓'}</span>
+                            <div>
+                              <span
+                                className={`text-sm font-medium ${
+                                  isHidden ? 'text-brand-navy/40 line-through' : 'text-brand-navy'
+                                }`}
+                              >
+                                {channel}
+                              </span>
+                              {isHidden && (
+                                <p className="text-xs text-brand-navy/40 mt-0.5">
+                                  Hidden from reports
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleToggleChannel(channel, isHidden)}
+                            className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                              isHidden
+                                ? 'bg-brand-gold text-brand-navy hover:bg-brand-gold/90'
+                                : 'bg-red-100 text-red-700 hover:bg-red-200'
+                            }`}
+                          >
+                            {isHidden ? (
+                              <>
+                                <Eye className="h-3.5 w-3.5 mr-1" />
+                                Show
+                              </>
+                            ) : (
+                              <>
+                                <EyeOff className="h-3.5 w-3.5 mr-1" />
+                                Hide
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              )}
+
+              <div className="mt-6 p-4 bg-golden-cream/20 border border-brand-gold/30 rounded-lg">
+                <p className="text-xs text-brand-navy/70">
+                  <strong>Note:</strong> Hiding a channel will remove it from your reports and charts, but
+                  won't delete the booking data. You can show it again anytime.
+                </p>
+              </div>
             </div>
           </div>
         </div>

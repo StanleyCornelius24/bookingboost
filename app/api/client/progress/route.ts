@@ -14,16 +14,19 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Get hotel
-  const { data: hotel } = await supabase
+  // Get hotel (get primary or first hotel)
+  const { data: hotels } = await supabase
     .from('hotels')
     .select('id, currency')
     .eq('user_id', user.id)
-    .single()
+    .order('is_primary', { ascending: false })
+    .order('created_at', { ascending: true })
 
-  if (!hotel) {
+  if (!hotels || hotels.length === 0) {
     return NextResponse.json({ error: 'Hotel not found' }, { status: 404 })
   }
+
+  const hotel = hotels[0]
 
   try {
     // Calculate date ranges

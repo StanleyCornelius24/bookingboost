@@ -49,6 +49,7 @@ export default async function AdminDashboardLayout({
       { name: 'Dashboard', href: '/dashboard-admin', icon: 'BarChart3' },
       { name: 'All Hotels', href: '/dashboard-admin/hotels', icon: 'Building2' },
       { name: 'All Users', href: '/dashboard-admin/users', icon: 'Users' },
+      { name: 'Channels', href: '/dashboard-admin/channels', icon: 'Tags' },
       { name: 'System Settings', href: '/dashboard-admin/settings', icon: 'Settings' },
     ]
 

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { google } from 'googleapis'
-import { cookies } from 'next/headers'
+import { getSelectedHotel } from '@/lib/get-selected-hotel'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const startDate = searchParams.get('startDate') || '30daysAgo'
     const endDate = searchParams.get('endDate') || 'today'
+    const selectedHotelId = searchParams.get('hotelId')
 
     const supabase = await createServerClient()
     const { data: { session } } = await supabase.auth.getSession()
@@ -16,26 +17,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check for impersonation
-    const cookieStore = await cookies()
-    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
-    const userId = impersonateUserId || session.user.id
+    // Get the hotel (selected or fallback to primary)
+    const { hotel, error: hotelError, status } = await getSelectedHotel(selectedHotelId, 'id, google_analytics_property_id')
 
-    // Get hotel and API token
-    const { data: hotel } = await supabase
-      .from('hotels')
-      .select('id, google_analytics_property_id')
-      .eq('user_id', userId)
-      .single()
-
-    if (!hotel) {
-      return NextResponse.json({ error: 'Hotel not found' }, { status: 404 })
+    if (hotelError || !hotel) {
+      return NextResponse.json({ error: hotelError || 'Hotel not found' }, { status })
     }
+
+    const hotelRecord = hotel as unknown as { id: string; google_analytics_property_id?: string }
 
     const { data: apiToken } = await supabase
       .from('api_tokens')
       .select('*')
-      .eq('hotel_id', hotel.id)
+      .eq('hotel_id', hotelRecord.id)
       .eq('service', 'google')
       .single()
 
@@ -57,7 +51,7 @@ export async function GET(request: NextRequest) {
     const analyticsData = google.analyticsdata({ version: 'v1beta', auth: oauth2Client })
     const searchConsole = google.searchconsole({ version: 'v1', auth: oauth2Client })
 
-    const analyticsPropertyId = hotel.google_analytics_property_id?.toString()
+    const analyticsPropertyId = hotelRecord.google_analytics_property_id?.toString()
 
     if (!analyticsPropertyId) {
       return NextResponse.json({ error: 'Analytics property ID not configured' }, { status: 400 })

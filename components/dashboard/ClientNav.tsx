@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
+import HotelSelector from '@/components/hotel-selector'
 import {
   LayoutDashboard,
   TrendingUp,
@@ -18,6 +19,7 @@ import {
   Settings,
   Menu,
   X,
+  Star,
   LucideIcon
 } from 'lucide-react'
 
@@ -32,7 +34,8 @@ const iconMap: Record<string, LucideIcon> = {
   Upload,
   BarChart3,
   List,
-  Settings
+  Settings,
+  Star
 }
 
 interface NavItem {
@@ -95,14 +98,12 @@ export default function ClientNav({ hotel, navigation, onSignOut }: ClientNavPro
             />
           </div>
 
-          {/* Role Indicator - Hotel Name */}
-          <div className="px-6 py-4 border-b border-soft-gray bg-golden-cream/30">
-            <p className="text-xs text-brand-navy/60 uppercase tracking-widest font-medium mb-1.5">
+          {/* Hotel Selector */}
+          <div className="px-4 py-4 border-b border-soft-gray bg-golden-cream/30">
+            <p className="text-xs text-brand-navy/60 uppercase tracking-widest font-medium mb-2 px-2">
               Your Hotel
             </p>
-            <p className="text-base font-semibold text-brand-navy">
-              {hotel?.name}
-            </p>
+            <HotelSelector />
           </div>
 
           {/* Navigation */}

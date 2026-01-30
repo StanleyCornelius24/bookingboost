@@ -3,12 +3,12 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, hotelName } = await request.json()
+    const { email, password } = await request.json()
 
     // Validate input
-    if (!email || !password || !hotelName) {
+    if (!email || !password) {
       return NextResponse.json(
-        { error: 'Email, password, and hotel name are required' },
+        { error: 'Email and password are required' },
         { status: 400 }
       )
     }
@@ -33,27 +33,6 @@ export async function POST(request: NextRequest) {
     if (!authData.user) {
       return NextResponse.json(
         { error: 'Failed to create user' },
-        { status: 500 }
-      )
-    }
-
-    // Create hotel record using service role (bypasses RLS)
-    const { error: hotelError } = await supabase
-      .from('hotels')
-      .insert({
-        name: hotelName,
-        email: email,
-        user_id: authData.user.id,
-      })
-
-    if (hotelError) {
-      console.error('Hotel creation error:', hotelError)
-
-      // If hotel creation fails, try to clean up the user account
-      await supabase.auth.admin.deleteUser(authData.user.id)
-
-      return NextResponse.json(
-        { error: 'Failed to create hotel record' },
         { status: 500 }
       )
     }

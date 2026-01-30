@@ -21,19 +21,24 @@ export async function getUserRole(): Promise<'agency' | 'client' | 'admin' | nul
       return impersonateRole as 'agency' | 'client' | 'admin'
     }
 
-    // Get hotel info for current user
-    const { data: hotel, error } = await supabase
+    // Get hotel info for current user (get primary hotel or first hotel)
+    const { data: hotels, error } = await supabase
       .from('hotels')
-      .select('user_role')
+      .select('user_role, is_primary')
       .eq('user_id', session.user.id)
-      .single()
+      .order('is_primary', { ascending: false })
+      .order('created_at', { ascending: true })
 
     if (error) {
       console.error('Error fetching user role:', error)
       return null
     }
 
-    return hotel?.user_role || 'client'
+    if (!hotels || hotels.length === 0) {
+      return null
+    }
+
+    return hotels[0]?.user_role || 'client'
   } catch (error) {
     console.error('Error in getUserRole:', error)
     return null
@@ -55,19 +60,25 @@ export async function getUserHotel(): Promise<Hotel | null> {
     const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
 
     // Get complete hotel info for current user or impersonated user
+    // Get primary hotel or first hotel if multiple hotels exist
     const userId = impersonateUserId || session.user.id
-    const { data: hotel, error } = await supabase
+    const { data: hotels, error } = await supabase
       .from('hotels')
       .select('*')
       .eq('user_id', userId)
-      .single()
+      .order('is_primary', { ascending: false })
+      .order('created_at', { ascending: true })
 
     if (error) {
       console.error('Error fetching user hotel:', error)
       return null
     }
 
-    return hotel
+    if (!hotels || hotels.length === 0) {
+      return null
+    }
+
+    return hotels[0]
   } catch (error) {
     console.error('Error in getUserHotel:', error)
     return null

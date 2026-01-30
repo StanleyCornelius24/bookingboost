@@ -15,6 +15,16 @@ export interface ClientDashboardData {
     moneySaved: number
     totalBookings: number
     marketingRoi: number
+    monthOverMonth: {
+      directBookings: number
+      directBookingsChange: number
+      directRevenue: number
+      directRevenueChange: number
+      totalBookings: number
+      totalBookingsChange: number
+      totalRevenue: number
+      totalRevenueChange: number
+    }
   }
   revenueHistory: RevenueHistoryPoint[]
   monthlyBreakdown: MonthlyBreakdown[]
@@ -204,6 +214,40 @@ export async function getClientDashboardData(hotelId: string): Promise<ClientDas
     // Calculate marketing ROI (placeholder for now)
     const marketingRoi = 2.4 // Sample ROI
 
+    // Calculate month-over-month comparisons (current month vs previous month)
+    const previousMonthDirectBookings = lastMonthBookings?.filter(booking =>
+      booking.channel?.toLowerCase().includes('direct') ||
+      booking.commission_rate === 0
+    ).length || 0
+
+    const currentMonthDirectRevenue = currentBookings?.filter(booking =>
+      booking.channel?.toLowerCase().includes('direct') ||
+      booking.commission_rate === 0
+    ).reduce((sum, booking) => sum + booking.revenue, 0) || 0
+
+    const previousMonthDirectRevenue = lastMonthBookings?.filter(booking =>
+      booking.channel?.toLowerCase().includes('direct') ||
+      booking.commission_rate === 0
+    ).reduce((sum, booking) => sum + booking.revenue, 0) || 0
+
+    const previousMonthTotalBookings = lastMonthBookings?.length || 0
+
+    // Calculate percentage changes
+    const directBookingsChange = previousMonthDirectBookings > 0
+      ? ((directBookings - previousMonthDirectBookings) / previousMonthDirectBookings) * 100
+      : 0
+
+    const directRevenueChange = previousMonthDirectRevenue > 0
+      ? ((currentMonthDirectRevenue - previousMonthDirectRevenue) / previousMonthDirectRevenue) * 100
+      : 0
+
+    const totalBookingsChange = previousMonthTotalBookings > 0
+      ? ((totalBookings - previousMonthTotalBookings) / previousMonthTotalBookings) * 100
+      : 0
+
+    // Total revenue change is already calculated as percentageChange
+    const totalRevenueChange = percentageChange
+
     // Get the latest booking date
     const { data: latestBooking } = await supabase
       .from('bookings')
@@ -237,7 +281,17 @@ export async function getClientDashboardData(hotelId: string): Promise<ClientDas
         directBookingsGoal,
         moneySaved,
         totalBookings,
-        marketingRoi
+        marketingRoi,
+        monthOverMonth: {
+          directBookings,
+          directBookingsChange,
+          directRevenue: currentMonthDirectRevenue,
+          directRevenueChange,
+          totalBookings,
+          totalBookingsChange,
+          totalRevenue: thisMonthRevenue,
+          totalRevenueChange
+        }
       },
       revenueHistory,
       monthlyBreakdown: monthlyBreakdown.slice(-12), // Only last 12 months for table

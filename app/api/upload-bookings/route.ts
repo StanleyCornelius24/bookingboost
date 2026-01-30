@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { parse } from 'csv-parse/sync'
 import { detectFormat, parseBookingRecords } from '@/lib/booking-parsers'
 import { COMMISSION_RATES } from '@/lib/constants'
+import { getSelectedHotel } from '@/lib/get-selected-hotel'
 
 export async function POST(request: Request) {
   const supabase = await createServerClient()
@@ -16,20 +17,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Get hotel
-  const { data: hotel } = await supabase
-    .from('hotels')
-    .select('*')
-    .eq('user_id', session.user.id)
-    .single()
-
-  if (!hotel) {
-    return NextResponse.json({ error: 'Hotel not found' }, { status: 404 })
-  }
-
   try {
+    // Get hotelId and file from form data
     const formData = await request.formData()
+    const selectedHotelId = formData.get('hotelId') as string | null
     const file = formData.get('file') as File
+
+    // Get the hotel (selected or fallback to primary)
+    const { hotel, error: hotelError, status } = await getSelectedHotel(selectedHotelId, '*')
+
+    if (hotelError || !hotel) {
+      return NextResponse.json({ error: hotelError || 'Hotel not found' }, { status })
+    }
+
+    const hotelRecord = hotel as unknown as { id: string }
 
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
     const { data: customRates } = await supabase
       .from('commission_rates')
       .select('channel_name, commission_rate')
-      .eq('hotel_id', hotel.id)
+      .eq('hotel_id', hotelRecord.id)
       .eq('is_active', true)
 
     // Build commission rates map
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
     }
 
     // Parse records using the appropriate parser with custom rates
-    const bookings = parseBookingRecords(records, formatDetection.format, hotel.id, commissionRates)
+    const bookings = parseBookingRecords(records, formatDetection.format, hotelRecord.id, commissionRates)
 
     // Extract unique channels from parsed bookings
     const channelsInUpload = [...new Set(bookings.map(booking => booking.channel))]
@@ -97,7 +98,7 @@ export async function POST(request: Request) {
     // Auto-create commission rates for new channels with default 10% rate
     if (newChannels.length > 0) {
       const newCommissionRates = newChannels.map(channel => ({
-        hotel_id: hotel.id,
+        hotel_id: hotelRecord.id,
         channel_name: channel,
         commission_rate: 0.10, // 10% default for unknown suppliers
         is_active: true
@@ -118,7 +119,7 @@ export async function POST(request: Request) {
     const { data: existingBookings } = await supabase
       .from('bookings')
       .select('*')
-      .eq('hotel_id', hotel.id)
+      .eq('hotel_id', hotelRecord.id)
       .in('booking_reference', bookingReferences)
 
     // Create a map of existing bookings by reference

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
+import { getSelectedHotel } from '@/lib/get-selected-hotel'
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,6 +8,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate') || '2023-01-01'
     const endDate = searchParams.get('endDate') || new Date().toISOString().split('T')[0]
     const adAccountId = searchParams.get('adAccountId')
+    const selectedHotelId = searchParams.get('hotelId')
 
     const supabase = await createServerClient()
     const { data: { session } } = await supabase.auth.getSession()
@@ -15,29 +17,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get hotel and API token
-    const { data: hotel } = await supabase
-      .from('hotels')
-      .select('id, meta_ad_account_id')
-      .eq('user_id', session.user.id)
-      .single()
+    // Get the hotel (selected or fallback to primary)
+    const { hotel, error: hotelError, status } = await getSelectedHotel(selectedHotelId, 'id, meta_ad_account_id')
 
-    if (!hotel) {
-      return NextResponse.json({ error: 'Hotel not found' }, { status: 404 })
+    if (hotelError || !hotel) {
+      return NextResponse.json({ error: hotelError || 'Hotel not found' }, { status })
     }
 
-    const { data: apiToken } = await supabase
+    const hotelRecord = hotel as unknown as { id: string; meta_ad_account_id: string | null }
+
+    const { data: apiToken, error: tokenError } = await supabase
       .from('api_tokens')
       .select('*')
-      .eq('hotel_id', hotel.id)
+      .eq('hotel_id', hotelRecord.id)
       .eq('service', 'meta')
       .single()
 
-    if (!apiToken) {
+    if (tokenError || !apiToken) {
       return NextResponse.json({ error: 'Meta account not connected' }, { status: 404 })
     }
 
-    const metaAdAccountId = adAccountId || hotel.meta_ad_account_id
+    const metaAdAccountId = adAccountId || hotelRecord.meta_ad_account_id
 
     if (!metaAdAccountId) {
       return NextResponse.json({ error: 'Meta Ad Account ID not configured' }, { status: 400 })
@@ -120,28 +120,28 @@ export async function GET(request: NextRequest) {
         .from('marketing_metrics')
         .upsert([
           {
-            hotel_id: hotel.id,
+            hotel_id: hotelRecord.id,
             date: dayData.date,
             source: 'meta_ads',
             metric_type: 'spend',
             value: dayData.spend
           },
           {
-            hotel_id: hotel.id,
+            hotel_id: hotelRecord.id,
             date: dayData.date,
             source: 'meta_ads',
             metric_type: 'clicks',
             value: dayData.clicks
           },
           {
-            hotel_id: hotel.id,
+            hotel_id: hotelRecord.id,
             date: dayData.date,
             source: 'meta_ads',
             metric_type: 'impressions',
             value: dayData.impressions
           },
           {
-            hotel_id: hotel.id,
+            hotel_id: hotelRecord.id,
             date: dayData.date,
             source: 'meta_ads',
             metric_type: 'conversions',

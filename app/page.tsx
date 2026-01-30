@@ -13,12 +13,13 @@ export default async function HomePage() {
     redirect('/login')
   }
 
-  // Get user's hotel profile
-  const { data: hotel, error } = await supabase
+  // Get user's hotels
+  const { data: hotels, error } = await supabase
     .from('hotels')
     .select('*')
     .eq('user_id', user.id)
-    .maybeSingle()
+    .order('is_primary', { ascending: false })
+    .order('created_at', { ascending: true })
 
   // Log error for debugging
   if (error) {
@@ -26,11 +27,13 @@ export default async function HomePage() {
   }
 
   // If no hotel profile exists, redirect to onboarding
-  if (!hotel) {
+  if (!hotels || hotels.length === 0) {
     console.log('No hotel profile found for user:', user.id)
     redirect('/onboard')
   }
 
+  // Get the primary hotel or first hotel
+  const hotel = hotels[0]
   console.log('User hotel profile:', hotel)
 
   // Redirect based on user role

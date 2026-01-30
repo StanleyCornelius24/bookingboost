@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
+import { getSelectedHotel } from '@/lib/get-selected-hotel'
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,6 +15,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'App URL not configured' }, { status: 500 })
     }
 
+    // Get selected hotel ID from query parameter
+    const { searchParams } = new URL(request.url)
+    const selectedHotelId = searchParams.get('hotelId')
+
     const supabase = await createServerClient()
     const { data: { session } } = await supabase.auth.getSession()
 
@@ -21,16 +26,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get hotel
-    const { data: hotel } = await supabase
-      .from('hotels')
-      .select('id')
-      .eq('user_id', session.user.id)
-      .single()
+    // Get the hotel (selected or fallback to primary)
+    const { hotel, error: hotelError, status } = await getSelectedHotel(selectedHotelId, 'id')
 
-    if (!hotel) {
-      return NextResponse.json({ error: 'Hotel not found' }, { status: 404 })
+    if (hotelError || !hotel) {
+      return NextResponse.json({ error: hotelError || 'Hotel not found' }, { status })
     }
+
+    const hotelRecord = hotel as unknown as { id: string }
 
     const scopes = [
       'ads_read',
@@ -44,7 +47,7 @@ export async function GET(request: NextRequest) {
       `client_id=${process.env.META_APP_ID}&` +
       `redirect_uri=${encodeURIComponent(redirectUri)}&` +
       `scope=${scopes}&` +
-      `state=${hotel.id}&` +
+      `state=${hotelRecord.id}&` +
       `response_type=code`
 
     console.log('Generated Meta auth URL:', authUrl)

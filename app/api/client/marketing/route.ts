@@ -1,47 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase/server'
 import { getMarketingAnalysis } from '@/lib/marketing-analysis-server'
-import { cookies } from 'next/headers'
+import { getSelectedHotel } from '@/lib/get-selected-hotel'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerClient()
-
-    // Check auth
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Check for impersonation
-    const cookieStore = await cookies()
-    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
-    const userId = impersonateUserId || session.user.id
-
-    // Get the user's hotel
-    const { data: hotel } = await supabase
-      .from('hotels')
-      .select('id, user_role')
-      .eq('user_id', userId)
-      .single()
-
-    if (!hotel) {
-      return NextResponse.json({ error: 'Hotel not found' }, { status: 404 })
-    }
-
-    // Check if user is client (not agency)
-    if (hotel.user_role === 'agency') {
-      return NextResponse.json({ error: 'Access denied. Client role required.' }, { status: 403 })
-    }
-
     // Get query parameters
     const { searchParams } = new URL(request.url)
+    const selectedHotelId = searchParams.get('hotelId')
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
 
+    // Get the hotel (selected or fallback to primary)
+    const { hotel, error, status } = await getSelectedHotel(selectedHotelId, 'id, user_role')
+
+    if (error || !hotel) {
+      return NextResponse.json({ error: error || 'Hotel not found' }, { status })
+    }
+
+    const hotelRecord = hotel as unknown as { id: string; user_role?: string }
+
+    // Check if user is client (not agency)
+    if (hotelRecord.user_role === 'agency') {
+      return NextResponse.json({ error: 'Access denied. Client role required.' }, { status: 403 })
+    }
+
     // Fetch marketing analysis
     const data = await getMarketingAnalysis(
-      hotel.id,
+      hotelRecord.id,
       startDate || undefined,
       endDate || undefined
     )

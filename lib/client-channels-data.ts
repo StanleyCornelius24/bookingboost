@@ -80,9 +80,11 @@ export async function getClientChannelsAnalysis(
     }
 
     // Calculate industry direct booking percentage
-    const industryDirectBookings = allIndustryBookings.filter(booking =>
-      booking.channel && booking.channel.toLowerCase().includes('direct')
-    ).length
+    const industryDirectBookings = allIndustryBookings.filter(booking => {
+      if (!booking.channel) return false
+      const channelLower = booking.channel.toLowerCase()
+      return channelLower.includes('direct') || channelLower === 'own web site'
+    }).length
     const industryDirectPercentage = allIndustryBookings.length > 0
       ? (industryDirectBookings / allIndustryBookings.length) * 100
       : 55 // fallback to 55% if no data
@@ -190,6 +192,17 @@ export async function getClientChannelsAnalysis(
       .select('channel_name, commission_rate, is_active')
       .eq('hotel_id', hotelId)
 
+    // Fetch hidden channels for this hotel (handle if table doesn't exist yet)
+    const { data: hiddenChannels, error: hiddenError } = await supabase
+      .from('hidden_channels')
+      .select('channel_name')
+      .eq('hotel_id', hotelId)
+
+    // If table doesn't exist or error, just use empty set
+    const hiddenChannelSet = new Set(
+      hiddenError ? [] : (hiddenChannels?.map(hc => hc.channel_name) || [])
+    )
+
     // Create a map of channel names to commission rates
     const commissionRateMap = new Map<string, number>()
     if (commissionRates) {
@@ -251,27 +264,32 @@ export async function getClientChannelsAnalysis(
       }
     })
 
-    // Convert to channel data with emojis
-    const channels: ClientChannelData[] = Array.from(channelGroups.entries()).map(([channel, data]) => {
-      const isDirect = channel.toLowerCase().includes('direct')
+    // Convert to channel data with emojis, filtering out hidden channels
+    const channels: ClientChannelData[] = Array.from(channelGroups.entries())
+      .filter(([channel]) => !hiddenChannelSet.has(channel))
+      .map(([channel, data]) => {
+        const channelLower = channel.toLowerCase()
+        const isDirect = channelLower.includes('direct') ||
+                         channelLower === 'own web site' ||
+                         data.commissionPaid === 0
 
-      // Calculate averages
-      const averageLeadTime = data.bookings > 0 ? data.totalLeadTimeDays / data.bookings : 0
-      const averageLengthOfStay = data.bookings > 0 ? data.totalNights / data.bookings : 0
-      const adr = data.totalNights > 0 ? data.revenue / data.totalNights : 0
+        // Calculate averages
+        const averageLeadTime = data.bookings > 0 ? data.totalLeadTimeDays / data.bookings : 0
+        const averageLengthOfStay = data.bookings > 0 ? data.totalNights / data.bookings : 0
+        const adr = data.totalNights > 0 ? data.revenue / data.totalNights : 0
 
-      return {
-        channel,
-        emoji: getChannelEmoji(channel),
-        bookings: data.bookings,
-        revenue: data.revenue,
-        commissionPaid: data.commissionPaid,
-        isDirect,
-        averageLeadTime,
-        averageLengthOfStay,
-        adr
-      }
-    })
+        return {
+          channel,
+          emoji: getChannelEmoji(channel),
+          bookings: data.bookings,
+          revenue: data.revenue,
+          commissionPaid: data.commissionPaid,
+          isDirect,
+          averageLeadTime,
+          averageLengthOfStay,
+          adr
+        }
+      })
 
     // Sort by revenue (highest first)
     channels.sort((a, b) => b.revenue - a.revenue)
@@ -321,6 +339,7 @@ function getChannelEmoji(channel: string): string {
   const channelLower = channel.toLowerCase()
 
   if (channelLower.includes('direct')) return '✅'
+  if (channelLower === 'own web site') return '🌐'
   if (channelLower.includes('booking.com')) return '📘'
   if (channelLower.includes('expedia')) return '🔷'
   if (channelLower.includes('airbnb')) return '🏠'

@@ -1,11 +1,13 @@
 import { google } from 'googleapis'
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
+import { getSelectedHotel } from '@/lib/get-selected-hotel'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const locationId = searchParams.get('locationId')
+    const selectedHotelId = searchParams.get('hotelId')
 
     const supabase = await createServerClient()
     const { data: { session } } = await supabase.auth.getSession()
@@ -14,25 +16,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get hotel and API token
-    const { data: hotel } = await supabase
-      .from('hotels')
-      .select('id, google_my_business_location_id')
-      .eq('user_id', session.user.id)
-      .single()
+    // Get the hotel (selected or fallback to primary)
+    const { hotel, error: hotelError, status } = await getSelectedHotel(selectedHotelId, 'id, google_my_business_location_id')
 
-    if (!hotel) {
-      return NextResponse.json({ error: 'Hotel not found' }, { status: 404 })
+    if (hotelError || !hotel) {
+      return NextResponse.json({ error: hotelError || 'Hotel not found' }, { status })
     }
 
-    const { data: apiToken } = await supabase
+    const hotelRecord = hotel as unknown as { id: string; google_my_business_location_id: string | null }
+
+    const { data: apiToken, error: tokenError } = await supabase
       .from('api_tokens')
       .select('*')
-      .eq('hotel_id', hotel.id)
+      .eq('hotel_id', hotelRecord.id)
       .eq('service', 'google')
       .single()
 
-    if (!apiToken) {
+    if (tokenError || !apiToken) {
       return NextResponse.json({ error: 'Google account not connected' }, { status: 404 })
     }
 
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     const mybusiness = google.mybusinessbusinessinformation({ version: 'v1', auth: oauth2Client })
 
     // If no location ID provided, list available locations first
-    if (!locationId && !hotel.google_my_business_location_id) {
+    if (!locationId && !hotelRecord.google_my_business_location_id) {
       try {
         // @ts-ignore - Google My Business API types may not be fully accurate
         const accountsResponse = await mybusiness.accounts.list()
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const businessLocationId = locationId || hotel.google_my_business_location_id
+    const businessLocationId = locationId || hotelRecord.google_my_business_location_id
 
     if (!businessLocationId) {
       return NextResponse.json({ error: 'Business location ID not provided' }, { status: 400 })

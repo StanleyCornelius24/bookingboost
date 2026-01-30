@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
+import { getSelectedHotel } from '@/lib/get-selected-hotel'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = await createServerClient()
 
   // Check auth
@@ -14,28 +14,25 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Check for impersonation
-  const cookieStore = await cookies()
-  const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
-  const userId = impersonateUserId || user.id
+  // Get selected hotel ID from query parameter
+  const { searchParams } = new URL(request.url)
+  const selectedHotelId = searchParams.get('hotelId')
 
-  // Get hotel
-  const { data: hotel } = await supabase
-    .from('hotels')
-    .select('id, name')
-    .eq('user_id', userId)
-    .single()
+  // Get the hotel (selected or fallback to primary)
+  const { hotel, error: hotelError, status } = await getSelectedHotel(selectedHotelId, 'id, name')
 
-  if (!hotel) {
-    return NextResponse.json({ error: 'Hotel not found' }, { status: 404 })
+  if (hotelError || !hotel) {
+    return NextResponse.json({ error: hotelError || 'Hotel not found' }, { status })
   }
+
+  const hotelRecord = hotel as unknown as { id: string; name: string }
 
   try {
     // First get the total count
     const { count: totalCount } = await supabase
       .from('bookings')
       .select('*', { count: 'exact', head: true })
-      .eq('hotel_id', hotel.id)
+      .eq('hotel_id', hotelRecord.id)
 
     console.log(`Total bookings in database: ${totalCount}`)
 
@@ -53,7 +50,7 @@ export async function GET() {
       const { data, error } = await supabase
         .from('bookings')
         .select('*, hotels(name)')
-        .eq('hotel_id', hotel.id)
+        .eq('hotel_id', hotelRecord.id)
         .order('booking_date', { ascending: false })
         .range(from, to)
 
@@ -75,7 +72,7 @@ export async function GET() {
 
     console.log(`Total bookings in database (count query): ${totalCount}`)
     console.log(`Total bookings fetched: ${bookings?.length || 0}`)
-    console.log(`Hotel ID: ${hotel.id}`)
+    console.log(`Hotel ID: ${hotelRecord.id}`)
 
     if (totalCount && bookings && totalCount !== bookings.length) {
       console.warn(`WARNING: Database has ${totalCount} bookings but only fetched ${bookings.length}!`)
@@ -127,7 +124,7 @@ export async function GET() {
       bookings: bookings || [],
       total: bookings?.length || 0,
       totalInDatabase: totalCount || 0,
-      hotelName: hotel.name
+      hotelName: hotelRecord.name
     })
   } catch (error: any) {
     console.error('Bookings fetch error:', error)

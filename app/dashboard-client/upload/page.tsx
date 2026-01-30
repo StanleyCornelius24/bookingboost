@@ -4,8 +4,10 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Upload as UploadIcon, FileText, AlertCircle, CheckCircle, Download } from 'lucide-react'
 import { parse } from 'csv-parse/browser/esm/sync'
+import { useSelectedHotelId } from '@/lib/hooks/use-selected-hotel-id'
 
 export default function UploadBookingsPage() {
+  const { selectedHotelId } = useSelectedHotelId()
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -54,6 +56,9 @@ export default function UploadBookingsPage() {
       // Use the API route that properly handles SiteMinder and NightsBridge formats
       const formData = new FormData()
       formData.append('file', file)
+      if (selectedHotelId) {
+        formData.append('hotelId', selectedHotelId)
+      }
 
       const response = await fetch('/api/upload-bookings', {
         method: 'POST',

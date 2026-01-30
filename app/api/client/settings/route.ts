@@ -1,67 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
+import { getSelectedHotel } from '@/lib/get-selected-hotel'
 
 export async function GET(request: NextRequest) {
   try {
     console.log('[Settings GET] Request received')
-    const supabase = await createServerClient()
 
-    // Check auth
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      console.log('[Settings GET] No session found')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // Get selected hotel ID from query parameter
+    const { searchParams } = new URL(request.url)
+    const selectedHotelId = searchParams.get('hotelId')
 
-    // Check for impersonation
-    const cookieStore = await cookies()
-    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
-    const userId = impersonateUserId || session.user.id
-
-    console.log('[Settings GET] Session found, user ID:', session.user.id, 'Effective user ID:', userId, 'Impersonating:', !!impersonateUserId)
-
-    // Get the user's hotel with all marketing-related fields
-    const { data: hotel, error } = await supabase
-      .from('hotels')
-      .select(`
-        id,
-        website,
-        google_analytics_property_id,
-        google_ads_customer_id,
-        google_ads_manager_id,
-        meta_ad_account_id,
-        last_settings_sync
-      `)
-      .eq('user_id', userId)
-      .single()
+    // Get the hotel (selected or fallback to primary)
+    const { hotel, error, status } = await getSelectedHotel(
+      selectedHotelId,
+      'id, website, google_analytics_property_id, google_ads_customer_id, google_ads_manager_id, google_my_business_location_id, meta_ad_account_id, last_settings_sync'
+    )
 
     if (error || !hotel) {
-      console.error('Settings GET - Hotel lookup failed:', {
-        error,
-        userId: session.user.id,
-        hasHotel: !!hotel
-      })
-      return NextResponse.json({ error: 'Hotel not found' }, { status: 404 })
+      console.error('Settings GET - Hotel lookup failed:', error)
+      return NextResponse.json({ error: error || 'Hotel not found' }, { status })
     }
+
+    const hotelRecord = hotel as unknown as { id: string; website?: string; google_analytics_property_id?: string; google_ads_customer_id?: string; google_ads_manager_id?: string; google_my_business_location_id?: string; meta_ad_account_id?: string; last_settings_sync?: string }
+    const supabase = await createServerClient()
 
     // Check if Google and Meta are connected
     const { data: googleToken } = await supabase
       .from('api_tokens')
       .select('id')
-      .eq('hotel_id', hotel.id)
+      .eq('hotel_id', hotelRecord.id)
       .eq('service', 'google')
       .maybeSingle()
 
     const { data: metaToken } = await supabase
       .from('api_tokens')
       .select('id')
-      .eq('hotel_id', hotel.id)
+      .eq('hotel_id', hotelRecord.id)
       .eq('service', 'meta')
       .maybeSingle()
 
     return NextResponse.json({
-      ...hotel,
+      ...hotelRecord,
       google_connected: !!googleToken,
       meta_connected: !!metaToken
     })
@@ -77,29 +56,19 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    // Get selected hotel ID from query parameter
+    const { searchParams } = new URL(request.url)
+    const selectedHotelId = searchParams.get('hotelId')
+
+    // Get the hotel (selected or fallback to primary)
+    const { hotel, error, status } = await getSelectedHotel(selectedHotelId, 'id')
+
+    if (error || !hotel) {
+      return NextResponse.json({ error: error || 'Hotel not found' }, { status })
+    }
+
+    const hotelRecord = hotel as unknown as { id: string }
     const supabase = await createServerClient()
-
-    // Check auth
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Check for impersonation
-    const cookieStore = await cookies()
-    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
-    const userId = impersonateUserId || session.user.id
-
-    // Get the user's hotel ID
-    const { data: hotel } = await supabase
-      .from('hotels')
-      .select('id')
-      .eq('user_id', userId)
-      .single()
-
-    if (!hotel) {
-      return NextResponse.json({ error: 'Hotel not found' }, { status: 404 })
-    }
 
     // Parse the request body
     const body = await request.json()
@@ -108,6 +77,7 @@ export async function PUT(request: NextRequest) {
       google_analytics_property_id,
       google_ads_customer_id,
       google_ads_manager_id,
+      google_my_business_location_id,
       meta_ad_account_id
     } = body
 
@@ -120,11 +90,12 @@ export async function PUT(request: NextRequest) {
         google_analytics_property_id,
         google_ads_customer_id,
         google_ads_manager_id,
+        google_my_business_location_id,
         meta_ad_account_id,
         updated_at: now,
         last_settings_sync: now
       })
-      .eq('id', hotel.id)
+      .eq('id', hotelRecord.id)
 
     if (updateError) {
       console.error('Update error:', updateError)

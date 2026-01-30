@@ -2,9 +2,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { requireUserRole, getImpersonatedUserInfo } from '@/lib/get-user-role'
-import AIChatbot from '@/components/chatbot/AIChatbot'
-import ClientNav from '@/components/dashboard/ClientNav'
 import ImpersonationBanner from '@/components/admin/ImpersonationBanner'
+import ClientLayoutWrapper from '@/components/dashboard/ClientLayoutWrapper'
 
 export default async function ClientDashboardLayout({
   children,
@@ -40,6 +39,7 @@ export default async function ClientDashboardLayout({
     const navigation = [
       { name: 'Booking Performance', href: '/dashboard-client', icon: 'TrendingUp' },
       { name: 'Marketing Performance', href: '/dashboard-client/marketing', icon: 'Target' },
+      { name: 'Google Reviews', href: '/dashboard-client/reviews', icon: 'Star' },
       { name: 'OTA Performance', href: '/dashboard-client/channels', icon: 'LineChart' },
       { name: 'Bookings', href: '/dashboard-client/bookings', icon: 'List' },
       { name: 'Settings', href: '/dashboard-client/settings', icon: 'Settings' },
@@ -56,25 +56,19 @@ export default async function ClientDashboardLayout({
     const impersonationInfo = await getImpersonatedUserInfo()
 
     return (
-      <div className="min-h-screen bg-off-white">
-        {/* Impersonation Banner */}
-        {impersonationInfo && (
-          <ImpersonationBanner userEmail={hotel.email} role={impersonationInfo.role} />
-        )}
-
-        {/* Client Navigation */}
-        <ClientNav hotel={hotel} navigation={navigation} onSignOut={handleSignOut} />
-
-        {/* Main Content - responsive padding */}
-        <div className="lg:pl-64" style={impersonationInfo ? { paddingTop: '40px' } : {}}>
-          <main className="p-4 sm:p-6 lg:p-10">
-            {children}
-          </main>
-        </div>
-
-        {/* AI Chatbot */}
-        <AIChatbot />
-      </div>
+      <ClientLayoutWrapper
+        hotel={hotel}
+        navigation={navigation}
+        onSignOut={handleSignOut}
+        impersonationBanner={
+          impersonationInfo ? (
+            <ImpersonationBanner userEmail={hotel.email} role={impersonationInfo.role} />
+          ) : undefined
+        }
+        hasImpersonation={!!impersonationInfo}
+      >
+        {children}
+      </ClientLayoutWrapper>
     )
   } catch (error) {
     // Check if impersonating - if there's an error during impersonation, exit it

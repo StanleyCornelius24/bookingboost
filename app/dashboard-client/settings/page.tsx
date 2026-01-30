@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Settings, ExternalLink, CheckCircle, XCircle, AlertCircle, User, Mail, Lock, DollarSign } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useApiUrl } from '@/lib/hooks/use-api-url'
+import { useSelectedHotelId } from '@/lib/hooks/use-selected-hotel-id'
 
 interface CommissionRate {
   id: string
@@ -21,6 +23,8 @@ export default function ClientSettingsPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const searchParams = useSearchParams()
   const supabase = createClient()
+  const buildUrl = useApiUrl()
+  const { selectedHotelId, isReady } = useSelectedHotelId()
 
   // Profile form state
   const [fullName, setFullName] = useState('')
@@ -37,6 +41,7 @@ export default function ClientSettingsPage() {
   const [gaPropertyId, setGaPropertyId] = useState('')
   const [googleAdsCustomerId, setGoogleAdsCustomerId] = useState('')
   const [googleAdsManagerId, setGoogleAdsManagerId] = useState('')
+  const [googleMyBusinessLocationId, setGoogleMyBusinessLocationId] = useState('')
   const [metaAdAccountId, setMetaAdAccountId] = useState('')
   const [websiteUrl, setWebsiteUrl] = useState('')
 
@@ -49,9 +54,14 @@ export default function ClientSettingsPage() {
   const [commissionSaving, setCommissionSaving] = useState(false)
 
   useEffect(() => {
-    fetchSettings()
-    fetchUserProfile()
-    fetchCommissionRates()
+    if (isReady) {
+      fetchSettings()
+      fetchUserProfile()
+      fetchCommissionRates()
+    }
+  }, [selectedHotelId, isReady])
+
+  useEffect(() => {
 
     // Handle OAuth callback messages
     const success = searchParams.get('success')
@@ -102,12 +112,14 @@ export default function ClientSettingsPage() {
   const fetchSettings = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/client/settings')
+      const url = buildUrl('/api/client/settings')
+      const response = await fetch(url)
       if (response.ok) {
         const data = await response.json()
         setGaPropertyId(data.google_analytics_property_id || '')
         setGoogleAdsCustomerId(data.google_ads_customer_id || '')
         setGoogleAdsManagerId(data.google_ads_manager_id || '')
+        setGoogleMyBusinessLocationId(data.google_my_business_location_id || '')
         setMetaAdAccountId(data.meta_ad_account_id || '')
         setWebsiteUrl(data.website || '')
         setGoogleConnected(data.google_connected || false)
@@ -122,7 +134,8 @@ export default function ClientSettingsPage() {
 
   const fetchCommissionRates = async () => {
     try {
-      const response = await fetch('/api/client/commission-rates')
+      const url = buildUrl('/api/client/commission-rates')
+      const response = await fetch(url)
       if (response.ok) {
         const data = await response.json()
         setCommissionRates(data)
@@ -137,7 +150,8 @@ export default function ClientSettingsPage() {
     setMessage(null)
 
     try {
-      const response = await fetch('/api/client/commission-rates', {
+      const url = buildUrl('/api/client/commission-rates')
+      const response = await fetch(url, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rates: commissionRates })
@@ -145,11 +159,14 @@ export default function ClientSettingsPage() {
 
       if (response.ok) {
         setMessage({ type: 'success', text: 'Commission rates updated successfully!' })
+        window.scrollTo({ top: 0, behavior: 'smooth' })
       } else {
         setMessage({ type: 'error', text: 'Failed to update commission rates' })
+        window.scrollTo({ top: 0, behavior: 'smooth' })
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Error updating commission rates' })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } finally {
       setCommissionSaving(false)
     }
@@ -188,8 +205,10 @@ export default function ClientSettingsPage() {
       if (error) throw error
 
       setMessage({ type: 'success', text: 'Profile updated successfully!' })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message || 'Failed to update profile' })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } finally {
       setProfileSaving(false)
     }
@@ -202,6 +221,7 @@ export default function ClientSettingsPage() {
 
     if (!newEmail || newEmail === email) {
       setMessage({ type: 'error', text: 'Please enter a new email address' })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       setEmailSaving(false)
       return
     }
@@ -229,9 +249,11 @@ export default function ClientSettingsPage() {
         type: 'success',
         text: 'Email update initiated. Please check your new email for a confirmation link.'
       })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       setNewEmail('')
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message || 'Failed to update email' })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } finally {
       setEmailSaving(false)
     }
@@ -244,12 +266,14 @@ export default function ClientSettingsPage() {
 
     if (newPassword !== confirmPassword) {
       setMessage({ type: 'error', text: 'New passwords do not match' })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       setPasswordSaving(false)
       return
     }
 
     if (newPassword.length < 6) {
       setMessage({ type: 'error', text: 'Password must be at least 6 characters long' })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       setPasswordSaving(false)
       return
     }
@@ -260,11 +284,13 @@ export default function ClientSettingsPage() {
       if (error) throw error
 
       setMessage({ type: 'success', text: 'Password updated successfully!' })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message || 'Failed to update password' })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } finally {
       setPasswordSaving(false)
     }
@@ -275,13 +301,15 @@ export default function ClientSettingsPage() {
     setMessage(null)
 
     try {
-      const response = await fetch('/api/client/settings', {
+      const url = buildUrl('/api/client/settings')
+      const response = await fetch(url, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           google_analytics_property_id: gaPropertyId,
           google_ads_customer_id: googleAdsCustomerId,
           google_ads_manager_id: googleAdsManagerId,
+          google_my_business_location_id: googleMyBusinessLocationId,
           meta_ad_account_id: metaAdAccountId,
           website: websiteUrl
         })
@@ -289,11 +317,15 @@ export default function ClientSettingsPage() {
 
       if (response.ok) {
         setMessage({ type: 'success', text: 'Settings saved successfully!' })
+        // Scroll to top to show success message
+        window.scrollTo({ top: 0, behavior: 'smooth' })
       } else {
         setMessage({ type: 'error', text: 'Failed to save settings' })
+        window.scrollTo({ top: 0, behavior: 'smooth' })
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Error saving settings' })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } finally {
       setSaving(false)
     }
@@ -304,7 +336,8 @@ export default function ClientSettingsPage() {
       setLoading(true)
       setMessage(null)
 
-      const response = await fetch('/api/integrations/google/auth')
+      const url = buildUrl('/api/integrations/google/auth')
+      const response = await fetch(url)
       const data = await response.json()
 
       if (!response.ok) {
@@ -331,7 +364,8 @@ export default function ClientSettingsPage() {
       setLoading(true)
       setMessage(null)
 
-      const response = await fetch('/api/integrations/meta/auth')
+      const url = buildUrl('/api/integrations/meta/auth')
+      const response = await fetch(url)
       const data = await response.json()
 
       if (!response.ok) {
@@ -742,6 +776,22 @@ export default function ClientSettingsPage() {
               />
               <p className="mt-1.5 text-xs font-light text-brand-navy/60">
                 Only needed if your account is managed through an MCC (Manager) account
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-brand-navy/60 uppercase tracking-wider mb-2">
+                Google Business Profile Location ID (Optional)
+              </label>
+              <input
+                type="text"
+                value={googleMyBusinessLocationId}
+                onChange={(e) => setGoogleMyBusinessLocationId(e.target.value)}
+                placeholder="e.g., locations/12345678901234567890"
+                className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold text-sm font-light text-brand-navy bg-card"
+              />
+              <p className="mt-1.5 text-xs font-light text-brand-navy/60">
+                Your Google Business Profile location identifier for reviews and insights
               </p>
             </div>
           </div>

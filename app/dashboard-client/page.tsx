@@ -22,28 +22,39 @@ import {
   ResponsiveContainer
 } from 'recharts'
 import { ClientDashboardData } from '@/lib/client-dashboard-data'
+import { useSelectedHotelId } from '@/lib/hooks/use-selected-hotel-id'
+import { useApiUrl } from '@/lib/hooks/use-api-url'
 
 export default function ClientDashboardPage() {
   const router = useRouter()
   const [data, setData] = useState<ClientDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const { selectedHotelId, isReady } = useSelectedHotelId()
+  const buildUrl = useApiUrl()
 
+  // Fetch dashboard data when hotel selection changes
   useEffect(() => {
-    fetchDashboardData()
-  }, [])
+    if (isReady) {
+      fetchDashboardData()
+    }
+  }, [selectedHotelId, isReady])
 
   const fetchDashboardData = async () => {
     setLoading(true)
     setError(null)
 
     try {
-      const response = await fetch('/api/client/dashboard')
+      const url = buildUrl('/api/client/dashboard')
+      const response = await fetch(url)
+
       if (!response.ok) {
         throw new Error('Failed to fetch dashboard data')
       }
 
       const dashboardData = await response.json()
+      setUserRole(dashboardData.userRole || null)
       setData(dashboardData)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
@@ -157,6 +168,35 @@ export default function ClientDashboardPage() {
     )
   }
 
+  // Check if there are no bookings
+  if (data && data.stats && data.stats.totalBookings === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-brand-navy">Booking Performance</h1>
+          <p className="text-brand-navy/60 mt-1 text-sm font-book">Track your revenue and booking trends</p>
+        </div>
+
+        <div className="bg-brand-gold/10 border-2 border-brand-gold/30 rounded-2xl p-8 text-center">
+          <div className="w-16 h-16 bg-brand-gold/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Upload className="h-8 w-8 text-brand-navy" />
+          </div>
+          <h2 className="text-xl font-bold text-brand-navy mb-2">No Bookings Data Available</h2>
+          <p className="text-brand-navy/70 mb-6 max-w-md mx-auto">
+            Upload your booking data to start generating insights and performance reports for this hotel.
+          </p>
+          <button
+            onClick={() => router.push('/dashboard-client/upload')}
+            className="inline-flex items-center px-6 py-3 bg-brand-gold text-brand-navy rounded-lg hover:bg-brand-gold/90 transition-colors font-semibold shadow-sm"
+          >
+            <Upload className="h-5 w-5 mr-2" />
+            Upload Bookings
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header with Compare Button */}
@@ -237,38 +277,105 @@ export default function ClientDashboardPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Direct Bookings % */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Direct Bookings */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-soft-gray hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-brand-navy/60 uppercase tracking-wider">Direct Bookings</p>
-              <p className="text-3xl font-bold text-brand-navy mt-2">
-                {data.stats.directBookingsPercentage.toFixed(1)}%
-              </p>
-              <p className="text-xs text-brand-navy/50 mt-1 font-book">Goal: {data.stats.directBookingsGoal}%</p>
+          <p className="text-xs font-semibold text-brand-navy/60 uppercase tracking-wider">Direct Bookings</p>
+          <p className="text-3xl font-bold text-brand-navy mt-2">
+            {formatNumber(data.stats.monthOverMonth.directBookings)}
+          </p>
+          {(userRole === 'admin' || userRole === 'supaadmin') && (
+            <div className="flex items-center mt-2">
+              {data.stats.monthOverMonth.directBookingsChange >= 0 ? (
+                <TrendingUp className="h-4 w-4 text-forest-green mr-1" />
+              ) : (
+                <TrendingDown className="h-4 w-4 text-sunset-orange mr-1" />
+              )}
+              <span className={`text-xs font-semibold ${
+                data.stats.monthOverMonth.directBookingsChange >= 0 ? 'text-forest-green' : 'text-sunset-orange'
+              }`}>
+                {data.stats.monthOverMonth.directBookingsChange >= 0 ? '+' : ''}{data.stats.monthOverMonth.directBookingsChange.toFixed(1)}% vs prev month
+              </span>
             </div>
-            <CircularProgress
-              percentage={data.stats.directBookingsPercentage}
-              goal={data.stats.directBookingsGoal}
-            />
-          </div>
+          )}
+          {!userRole || (userRole !== 'admin' && userRole !== 'supaadmin') ? (
+            <p className="text-xs text-brand-navy/50 mt-2 font-book">last month</p>
+          ) : null}
+        </div>
+
+        {/* Direct Revenue */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-soft-gray hover:shadow-md transition-shadow">
+          <p className="text-xs font-semibold text-brand-navy/60 uppercase tracking-wider">Direct Revenue</p>
+          <p className="text-3xl font-bold text-brand-navy mt-2">
+            {formatCurrency(data.stats.monthOverMonth.directRevenue, data.hero.currency)}
+          </p>
+          {(userRole === 'admin' || userRole === 'supaadmin') && (
+            <div className="flex items-center mt-2">
+              {data.stats.monthOverMonth.directRevenueChange >= 0 ? (
+                <TrendingUp className="h-4 w-4 text-forest-green mr-1" />
+              ) : (
+                <TrendingDown className="h-4 w-4 text-sunset-orange mr-1" />
+              )}
+              <span className={`text-xs font-semibold ${
+                data.stats.monthOverMonth.directRevenueChange >= 0 ? 'text-forest-green' : 'text-sunset-orange'
+              }`}>
+                {data.stats.monthOverMonth.directRevenueChange >= 0 ? '+' : ''}{data.stats.monthOverMonth.directRevenueChange.toFixed(1)}% vs prev month
+              </span>
+            </div>
+          )}
+          {!userRole || (userRole !== 'admin' && userRole !== 'supaadmin') ? (
+            <p className="text-xs text-brand-navy/50 mt-2 font-book">last month</p>
+          ) : null}
         </div>
 
         {/* Total Bookings */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-soft-gray hover:shadow-md transition-shadow">
-          <div className="flex items-center">
-            <div className="w-14 h-14 bg-brand-gold/20 rounded-xl flex items-center justify-center mr-4">
-              <Calendar className="h-7 w-7 text-brand-navy" />
+          <p className="text-xs font-semibold text-brand-navy/60 uppercase tracking-wider">Total Bookings</p>
+          <p className="text-3xl font-bold text-brand-navy mt-2">
+            {formatNumber(data.stats.monthOverMonth.totalBookings)}
+          </p>
+          {(userRole === 'admin' || userRole === 'supaadmin') && (
+            <div className="flex items-center mt-2">
+              {data.stats.monthOverMonth.totalBookingsChange >= 0 ? (
+                <TrendingUp className="h-4 w-4 text-forest-green mr-1" />
+              ) : (
+                <TrendingDown className="h-4 w-4 text-sunset-orange mr-1" />
+              )}
+              <span className={`text-xs font-semibold ${
+                data.stats.monthOverMonth.totalBookingsChange >= 0 ? 'text-forest-green' : 'text-sunset-orange'
+              }`}>
+                {data.stats.monthOverMonth.totalBookingsChange >= 0 ? '+' : ''}{data.stats.monthOverMonth.totalBookingsChange.toFixed(1)}% vs prev month
+              </span>
             </div>
-            <div>
-              <p className="text-xs font-semibold text-brand-navy/60 uppercase tracking-wider">Total Bookings</p>
-              <p className="text-3xl font-bold text-brand-navy mt-1">
-                {formatNumber(data.stats.totalBookings)}
-              </p>
-              <p className="text-xs text-brand-navy/50 mt-0.5 font-book">last month</p>
+          )}
+          {!userRole || (userRole !== 'admin' && userRole !== 'supaadmin') ? (
+            <p className="text-xs text-brand-navy/50 mt-2 font-book">last month</p>
+          ) : null}
+        </div>
+
+        {/* Total Revenue */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-soft-gray hover:shadow-md transition-shadow">
+          <p className="text-xs font-semibold text-brand-navy/60 uppercase tracking-wider">Total Revenue</p>
+          <p className="text-3xl font-bold text-brand-navy mt-2">
+            {formatCurrency(data.stats.monthOverMonth.totalRevenue, data.hero.currency)}
+          </p>
+          {(userRole === 'admin' || userRole === 'supaadmin') && (
+            <div className="flex items-center mt-2">
+              {data.stats.monthOverMonth.totalRevenueChange >= 0 ? (
+                <TrendingUp className="h-4 w-4 text-forest-green mr-1" />
+              ) : (
+                <TrendingDown className="h-4 w-4 text-sunset-orange mr-1" />
+              )}
+              <span className={`text-xs font-semibold ${
+                data.stats.monthOverMonth.totalRevenueChange >= 0 ? 'text-forest-green' : 'text-sunset-orange'
+              }`}>
+                {data.stats.monthOverMonth.totalRevenueChange >= 0 ? '+' : ''}{data.stats.monthOverMonth.totalRevenueChange.toFixed(1)}% vs prev month
+              </span>
             </div>
-          </div>
+          )}
+          {!userRole || (userRole !== 'admin' && userRole !== 'supaadmin') ? (
+            <p className="text-xs text-brand-navy/50 mt-2 font-book">last month</p>
+          ) : null}
         </div>
       </div>
 

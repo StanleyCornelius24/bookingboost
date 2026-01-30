@@ -1,41 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase/server'
 import { getClientChannelsAnalysis } from '@/lib/client-channels-data'
-import { cookies } from 'next/headers'
+import { getSelectedHotel } from '@/lib/get-selected-hotel'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerClient()
-
-    // Check auth
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Check for impersonation
-    const cookieStore = await cookies()
-    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
-    const userId = impersonateUserId || session.user.id
-
-    // Get user's hotel
-    const { data: hotel } = await supabase
-      .from('hotels')
-      .select('id')
-      .eq('user_id', userId)
-      .single()
-
-    if (!hotel) {
-      return NextResponse.json({ error: 'Hotel not found' }, { status: 404 })
-    }
-
     // Get date range from query parameters
     const searchParams = request.nextUrl.searchParams
+    const selectedHotelId = searchParams.get('hotelId')
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
 
+    // Get the hotel (selected or fallback to primary)
+    const { hotel, error, status } = await getSelectedHotel(selectedHotelId, 'id')
+
+    if (error || !hotel) {
+      return NextResponse.json({ error: error || 'Hotel not found' }, { status })
+    }
+
+    const hotelRecord = hotel as unknown as { id: string }
+
     // Fetch client channels analysis
-    const data = await getClientChannelsAnalysis(hotel.id, startDate, endDate)
+    const data = await getClientChannelsAnalysis(hotelRecord.id, startDate, endDate)
 
     if (!data) {
       return NextResponse.json({ error: 'Failed to fetch channels data' }, { status: 500 })

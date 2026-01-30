@@ -1,7 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Target, DollarSign, MousePointerClick, Eye, Info, X } from 'lucide-react'
+import { Target, DollarSign, MousePointerClick, Eye, Info, X, Settings, Search } from 'lucide-react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useApiUrl } from '@/lib/hooks/use-api-url'
+import { useSelectedHotelId } from '@/lib/hooks/use-selected-hotel-id'
 
 interface GoogleAdsData {
   totalSpend: number
@@ -32,26 +36,38 @@ interface ConversionsData {
 }
 
 export default function GoogleAdsPage() {
+  const router = useRouter()
+  const buildUrl = useApiUrl()
+  const { selectedHotelId, isReady } = useSelectedHotelId()
   const [loading, setLoading] = useState(true)
   const [googleAdsData, setGoogleAdsData] = useState<GoogleAdsData | null>(null)
   const [keywordsData, setKeywordsData] = useState<KeywordData[]>([])
   const [conversionsData, setConversionsData] = useState<ConversionsData | null>(null)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   useEffect(() => {
-    fetchGoogleAdsData()
-    fetchKeywordsData()
-    fetchConversionsData()
-  }, [])
+    if (isReady) {
+      // Set default dates to last 30 days
+      const end = new Date()
+      const start = new Date()
+      start.setDate(start.getDate() - 30)
 
-  const fetchGoogleAdsData = async () => {
+      setEndDate(end.toISOString().split('T')[0])
+      setStartDate(start.toISOString().split('T')[0])
+
+      fetchGoogleAdsData(start.toISOString().split('T')[0], end.toISOString().split('T')[0])
+      fetchKeywordsData(start.toISOString().split('T')[0], end.toISOString().split('T')[0])
+      fetchConversionsData(start.toISOString().split('T')[0], end.toISOString().split('T')[0])
+    }
+  }, [selectedHotelId, isReady])
+
+  const fetchGoogleAdsData = async (start: string, end: string) => {
     setLoading(true)
 
     try {
-      // Calculate dates for last 30 days
-      const endDate = new Date().toISOString().split('T')[0]
-      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-
-      const response = await fetch(`/api/integrations/google/ads?startDate=${startDate}&endDate=${endDate}`)
+      const url = buildUrl('/api/integrations/google/ads', { startDate: start, endDate: end })
+      const response = await fetch(url)
       if (response.ok) {
         const adsData = await response.json()
 
@@ -74,12 +90,10 @@ export default function GoogleAdsPage() {
     }
   }
 
-  const fetchKeywordsData = async () => {
+  const fetchKeywordsData = async (start: string, end: string) => {
     try {
-      const endDate = new Date().toISOString().split('T')[0]
-      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-
-      const response = await fetch(`/api/integrations/google/ads/keywords?startDate=${startDate}&endDate=${endDate}`)
+      const url = buildUrl('/api/integrations/google/ads/keywords', { startDate: start, endDate: end })
+      const response = await fetch(url)
       if (response.ok) {
         const data = await response.json()
         setKeywordsData(data.keywords || [])
@@ -92,9 +106,10 @@ export default function GoogleAdsPage() {
     }
   }
 
-  const fetchConversionsData = async () => {
+  const fetchConversionsData = async (start: string, end: string) => {
     try {
-      const response = await fetch('/api/integrations/google/analytics/conversions?startDate=30daysAgo&endDate=today')
+      const url = buildUrl('/api/integrations/google/analytics/conversions', { startDate: start, endDate: end })
+      const response = await fetch(url)
       if (response.ok) {
         const data = await response.json()
         setConversionsData(data)
@@ -120,6 +135,21 @@ export default function GoogleAdsPage() {
     return new Intl.NumberFormat('en-ZA').format(value)
   }
 
+  const formatDateRange = () => {
+    if (!startDate || !endDate) return 'Last 30 Days'
+
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+
+    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+  }
+
+  const handleUpdateData = () => {
+    fetchGoogleAdsData(startDate, endDate)
+    fetchKeywordsData(startDate, endDate)
+    fetchConversionsData(startDate, endDate)
+  }
+
   if (loading) {
     return (
       <div className="space-y-8">
@@ -134,11 +164,60 @@ export default function GoogleAdsPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-4xl font-bold text-brand-navy mb-2">Google Ads</h1>
-        <p className="text-brand-navy/70 mt-2 text-base font-light">
-          Deep dive into your Google Ads campaign performance
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
+        <div>
+          <h1 className="text-4xl font-bold text-brand-navy mb-2">Google Ads</h1>
+          <p className="text-brand-navy/70 mt-2 text-base font-light">
+            Deep dive into your Google Ads campaign performance
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push('/dashboard-client/marketing')}
+            className="flex items-center px-4 py-2 text-sm font-semibold bg-white text-brand-navy rounded-lg hover:bg-soft-gray/50 transition-colors border border-soft-gray"
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            Website Performance
+          </button>
+          <div className="flex items-center px-4 py-2 text-sm font-semibold bg-tropical-teal text-white rounded-lg border border-tropical-teal shadow-sm">
+            <Target className="h-4 w-4 mr-2" />
+            Google Ads
+          </div>
+          <button
+            onClick={() => router.push('/dashboard-client/seo')}
+            className="flex items-center px-4 py-2 text-sm font-semibold bg-white text-brand-navy rounded-lg hover:bg-soft-gray/50 transition-colors border border-soft-gray"
+          >
+            <Search className="h-4 w-4 mr-2" />
+            SEO
+          </button>
+        </div>
+      </div>
+
+      {/* Date Range Selector */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-soft-gray">
+        <h3 className="text-base font-semibold text-brand-navy mb-3">Date Range</h3>
+        <div className="flex items-center gap-3">
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="px-3 py-2 text-sm border border-soft-gray rounded-lg focus:ring-2 focus:ring-brand-gold focus:border-transparent"
+          />
+          <span className="text-brand-navy/60 text-sm font-medium">to</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="px-3 py-2 text-sm border border-soft-gray rounded-lg focus:ring-2 focus:ring-brand-gold focus:border-transparent"
+          />
+          <button
+            onClick={handleUpdateData}
+            disabled={loading}
+            className="px-4 py-2 text-sm font-semibold bg-brand-gold text-brand-navy rounded-lg hover:bg-brand-gold/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Updating...' : 'Update'}
+          </button>
+        </div>
       </div>
 
       {/* Google Ads Performance Score Cards */}
@@ -188,7 +267,7 @@ export default function GoogleAdsPage() {
                   {formatNumber(googleAdsData.totalConversions)}
                 </div>
               </ConversionTooltip>
-              <p className="text-xs text-brand-navy/60 mt-1">Goals completed</p>
+              <p className="text-xs text-brand-navy/60 mt-1">From Google Ads</p>
             </div>
           </div>
 
@@ -197,7 +276,7 @@ export default function GoogleAdsPage() {
             <div className="bg-white rounded-xl border border-soft-gray overflow-hidden shadow-sm">
               <div className="px-6 py-5 border-b border-soft-gray">
                 <h3 className="text-lg font-bold text-brand-navy">Top Keywords by Clicks</h3>
-                <p className="text-sm text-brand-navy/60 mt-1">Best performing keywords (Last 30 Days)</p>
+                <p className="text-sm text-brand-navy/60 mt-1">Best performing keywords ({formatDateRange()})</p>
               </div>
 
               <div className="overflow-x-auto">
@@ -314,7 +393,10 @@ function ConversionTooltip({ conversionsData, children }: ConversionTooltipProps
               <div className="flex items-center justify-between p-6 border-b border-soft-gray">
                 <div>
                   <h3 className="text-lg font-bold text-brand-navy">Conversion Events</h3>
-                  <p className="text-sm text-brand-navy/60 mt-1">Last 30 Days</p>
+                  <p className="text-sm text-brand-navy/60 mt-1">From Google Analytics ({formatDateRange()})</p>
+                  <p className="text-xs text-brand-navy/40 mt-1 italic">
+                    Note: GA4 conversions may differ from Google Ads due to attribution models
+                  </p>
                 </div>
                 <button
                   onClick={() => setShowPopup(false)}

@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Calendar, Search, Upload } from 'lucide-react'
+import { Calendar, Search, Upload, Pencil, Trash2, X } from 'lucide-react'
 import Link from 'next/link'
+import { useApiUrl } from '@/lib/hooks/use-api-url'
+import { useSelectedHotelId } from '@/lib/hooks/use-selected-hotel-id'
 
 interface Booking {
   id: string
@@ -23,6 +25,8 @@ interface Booking {
 }
 
 export default function BookingsListPage() {
+  const buildUrl = useApiUrl()
+  const { selectedHotelId, isReady } = useSelectedHotelId()
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -31,17 +35,24 @@ export default function BookingsListPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [hotelName, setHotelName] = useState<string>('')
   const [totalInDatabase, setTotalInDatabase] = useState<number>(0)
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null)
+  const [deletingBookingId, setDeletingBookingId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    fetchBookings()
-  }, [])
+    if (isReady) {
+      fetchBookings()
+    }
+  }, [selectedHotelId, isReady])
 
   const fetchBookings = async () => {
     setLoading(true)
     setError(null)
 
     try {
-      const response = await fetch('/api/client/bookings/all')
+      const url = buildUrl('/api/client/bookings/all')
+      const response = await fetch(url)
       if (!response.ok) {
         throw new Error('Failed to fetch bookings')
       }
@@ -77,6 +88,76 @@ export default function BookingsListPage() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(amount)
+  }
+
+  const isDirectBooking = (booking: Booking) => {
+    const channel = booking.channel?.toLowerCase() || ''
+    return channel.includes('direct') || channel === 'own web site' || booking.commission_rate === 0
+  }
+
+  const handleDeleteBooking = async (bookingId: string) => {
+    setIsDeleting(true)
+    try {
+      const url = buildUrl(`/api/client/bookings/${bookingId}`)
+      const response = await fetch(url, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete booking')
+      }
+
+      // Remove the booking from the local state
+      setBookings(bookings.filter(b => b.id !== bookingId))
+      setDeletingBookingId(null)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete booking')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleUpdateBooking = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingBooking) return
+
+    setIsSaving(true)
+    try {
+      const url = buildUrl(`/api/client/bookings/${editingBooking.id}`)
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          booking_date: editingBooking.booking_date,
+          checkin_date: editingBooking.checkin_date,
+          checkout_date: editingBooking.checkout_date,
+          channel: editingBooking.channel,
+          guest_name: editingBooking.guest_name,
+          revenue: editingBooking.revenue,
+          nights: editingBooking.nights,
+          status: editingBooking.status,
+          commission_rate: editingBooking.commission_rate,
+          commission_amount: editingBooking.commission_amount,
+          hotelId: selectedHotelId,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update booking')
+      }
+
+      const { booking: updatedBooking } = await response.json()
+
+      // Update the booking in the local state
+      setBookings(bookings.map(b => b.id === updatedBooking.id ? updatedBooking : b))
+      setEditingBooking(null)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to update booking')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const filteredAndSortedBookings = bookings
@@ -222,6 +303,9 @@ export default function BookingsListPage() {
                 <th className="px-6 py-4 text-center text-xs font-semibold text-brand-navy/60 uppercase tracking-wider">
                   Nights
                 </th>
+                <th className="px-6 py-4 text-center text-xs font-semibold text-brand-navy/60 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-soft-gray">
@@ -234,7 +318,7 @@ export default function BookingsListPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <span className={`font-semibold px-3 py-1.5 rounded-lg ${
-                      booking.channel?.toLowerCase().includes('direct')
+                      isDirectBooking(booking)
                         ? 'bg-forest-green/10 text-forest-green'
                         : 'bg-tropical-teal/10 text-tropical-teal'
                     }`}>
@@ -258,6 +342,24 @@ export default function BookingsListPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-brand-navy">
                     {booking.nights || 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => setEditingBooking(booking)}
+                        className="p-2 text-brand-navy hover:bg-brand-gold/10 rounded-lg transition-colors"
+                        title="Edit booking"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeletingBookingId(booking.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete booking"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -302,16 +404,216 @@ export default function BookingsListPage() {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-soft-gray hover:shadow-md transition-shadow">
           <div className="text-xs font-semibold text-brand-navy/60 uppercase tracking-wider mb-2">Direct Bookings</div>
           <div className="text-3xl font-bold text-forest-green">
-            {filteredAndSortedBookings.filter(b => b.channel?.toLowerCase().includes('direct') || b.commission_rate === 0).length}
+            {filteredAndSortedBookings.filter(isDirectBooking).length}
           </div>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-sm border border-soft-gray hover:shadow-md transition-shadow">
           <div className="text-xs font-semibold text-brand-navy/60 uppercase tracking-wider mb-2">OTA Bookings</div>
           <div className="text-3xl font-bold text-tropical-teal">
-            {filteredAndSortedBookings.filter(b => !b.channel?.toLowerCase().includes('direct') && b.commission_rate > 0).length}
+            {filteredAndSortedBookings.filter(b => !isDirectBooking(b)).length}
           </div>
         </div>
       </div>
+
+      {/* Edit Booking Modal */}
+      {editingBooking && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-soft-gray px-6 py-4 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-brand-navy">Edit Booking</h2>
+              <button
+                onClick={() => setEditingBooking(null)}
+                className="p-2 hover:bg-soft-gray rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5 text-brand-navy/60" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateBooking} className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-brand-navy mb-2">
+                    Booking Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={editingBooking.booking_date}
+                    onChange={(e) => setEditingBooking({ ...editingBooking, booking_date: e.target.value })}
+                    required
+                    className="w-full px-4 py-3 border border-soft-gray rounded-xl focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-brand-navy mb-2">
+                    Channel *
+                  </label>
+                  <input
+                    type="text"
+                    value={editingBooking.channel}
+                    onChange={(e) => setEditingBooking({ ...editingBooking, channel: e.target.value })}
+                    required
+                    className="w-full px-4 py-3 border border-soft-gray rounded-xl focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-brand-navy mb-2">
+                    Check-in Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editingBooking.checkin_date || ''}
+                    onChange={(e) => setEditingBooking({ ...editingBooking, checkin_date: e.target.value || null })}
+                    className="w-full px-4 py-3 border border-soft-gray rounded-xl focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-brand-navy mb-2">
+                    Checkout Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editingBooking.checkout_date || ''}
+                    onChange={(e) => setEditingBooking({ ...editingBooking, checkout_date: e.target.value || null })}
+                    className="w-full px-4 py-3 border border-soft-gray rounded-xl focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-brand-navy mb-2">
+                    Guest Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editingBooking.guest_name || ''}
+                    onChange={(e) => setEditingBooking({ ...editingBooking, guest_name: e.target.value || null })}
+                    className="w-full px-4 py-3 border border-soft-gray rounded-xl focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-brand-navy mb-2">
+                    Revenue *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editingBooking.revenue}
+                    onChange={(e) => setEditingBooking({ ...editingBooking, revenue: parseFloat(e.target.value) })}
+                    required
+                    className="w-full px-4 py-3 border border-soft-gray rounded-xl focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-brand-navy mb-2">
+                    Nights
+                  </label>
+                  <input
+                    type="number"
+                    value={editingBooking.nights || ''}
+                    onChange={(e) => setEditingBooking({ ...editingBooking, nights: e.target.value ? parseInt(e.target.value) : null })}
+                    className="w-full px-4 py-3 border border-soft-gray rounded-xl focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-brand-navy mb-2">
+                    Status
+                  </label>
+                  <input
+                    type="text"
+                    value={editingBooking.status || ''}
+                    onChange={(e) => setEditingBooking({ ...editingBooking, status: e.target.value || null })}
+                    className="w-full px-4 py-3 border border-soft-gray rounded-xl focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-brand-navy mb-2">
+                    Commission Rate
+                  </label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={editingBooking.commission_rate}
+                    onChange={(e) => setEditingBooking({ ...editingBooking, commission_rate: parseFloat(e.target.value) })}
+                    className="w-full px-4 py-3 border border-soft-gray rounded-xl focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-brand-navy mb-2">
+                    Commission Amount
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editingBooking.commission_amount}
+                    onChange={(e) => setEditingBooking({ ...editingBooking, commission_amount: parseFloat(e.target.value) })}
+                    className="w-full px-4 py-3 border border-soft-gray rounded-xl focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-soft-gray">
+                <button
+                  type="button"
+                  onClick={() => setEditingBooking(null)}
+                  className="px-6 py-3 border border-soft-gray text-brand-navy rounded-xl hover:bg-soft-gray/50 transition-all font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-6 py-3 bg-brand-gold text-brand-navy rounded-xl hover:bg-brand-gold/90 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingBookingId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 mx-auto mb-4">
+              <Trash2 className="h-6 w-6 text-red-600" />
+            </div>
+
+            <h2 className="text-2xl font-bold text-brand-navy text-center mb-2">
+              Delete Booking?
+            </h2>
+
+            <p className="text-brand-navy/60 text-center mb-6">
+              This action cannot be undone. This booking will be permanently deleted from your records.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeletingBookingId(null)}
+                disabled={isDeleting}
+                className="flex-1 px-6 py-3 border border-soft-gray text-brand-navy rounded-xl hover:bg-soft-gray/50 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteBooking(deletingBookingId)}
+                disabled={isDeleting}
+                className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

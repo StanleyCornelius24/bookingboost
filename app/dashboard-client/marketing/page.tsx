@@ -16,6 +16,8 @@ import {
   ResponsiveContainer
 } from 'recharts'
 import { MarketingAnalysisData } from '@/lib/marketing-analysis-types'
+import { useApiUrl } from '@/lib/hooks/use-api-url'
+import { useSelectedHotelId } from '@/lib/hooks/use-selected-hotel-id'
 
 interface GA4Data {
   totalSessions: number
@@ -68,6 +70,8 @@ interface ConversionsData {
 
 export default function ClientMarketingPage() {
   const router = useRouter()
+  const buildUrl = useApiUrl()
+  const { selectedHotelId, isReady } = useSelectedHotelId()
   const [data, setData] = useState<MarketingAnalysisData | null>(null)
   const [ga4Data, setGa4Data] = useState<GA4Data | null>(null)
   const [googleAdsData, setGoogleAdsData] = useState<GoogleAdsData | null>(null)
@@ -80,21 +84,34 @@ export default function ClientMarketingPage() {
   const [ga4Error, setGa4Error] = useState<string | null>(null)
   const [adsError, setAdsError] = useState<string | null>(null)
   const [lastSync, setLastSync] = useState<string | null>(null)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   useEffect(() => {
-    fetchMarketingData()
-    fetchGA4Data()
-    fetchGoogleAdsData()
-    fetchConversionsData()
-    fetchAttributionModel()
-  }, [])
+    if (isReady) {
+      // Set default dates to last 30 days
+      const end = new Date()
+      const start = new Date()
+      start.setDate(start.getDate() - 30)
 
-  const fetchMarketingData = async () => {
+      setEndDate(end.toISOString().split('T')[0])
+      setStartDate(start.toISOString().split('T')[0])
+
+      fetchMarketingData(start.toISOString().split('T')[0], end.toISOString().split('T')[0])
+      fetchGA4Data(start.toISOString().split('T')[0], end.toISOString().split('T')[0])
+      fetchGoogleAdsData(start.toISOString().split('T')[0], end.toISOString().split('T')[0])
+      fetchConversionsData(start.toISOString().split('T')[0], end.toISOString().split('T')[0])
+      fetchAttributionModel()
+    }
+  }, [selectedHotelId, isReady])
+
+  const fetchMarketingData = async (start: string, end: string) => {
     setLoading(true)
     setError(null)
 
     try {
-      const response = await fetch('/api/client/marketing')
+      const url = buildUrl('/api/client/marketing', { startDate: start, endDate: end })
+      const response = await fetch(url)
       if (!response.ok) {
         throw new Error('Failed to fetch marketing data')
       }
@@ -103,7 +120,8 @@ export default function ClientMarketingPage() {
       setData(marketingData)
 
       // Fetch last sync time
-      const settingsResponse = await fetch('/api/client/settings')
+      const settingsUrl = buildUrl('/api/client/settings')
+      const settingsResponse = await fetch(settingsUrl)
       if (settingsResponse.ok) {
         const settings = await settingsResponse.json()
         setLastSync(settings.last_marketing_sync)
@@ -115,12 +133,13 @@ export default function ClientMarketingPage() {
     }
   }
 
-  const fetchGA4Data = async () => {
+  const fetchGA4Data = async (start: string, end: string) => {
     setGa4Loading(true)
     setGa4Error(null)
 
     try {
-      const response = await fetch('/api/integrations/google/analytics?startDate=30daysAgo&endDate=today')
+      const url = buildUrl('/api/integrations/google/analytics', { startDate: start, endDate: end })
+      const response = await fetch(url)
       if (response.ok) {
         const analyticsData = await response.json()
 
@@ -169,16 +188,13 @@ export default function ClientMarketingPage() {
     }
   }
 
-  const fetchGoogleAdsData = async () => {
+  const fetchGoogleAdsData = async (start: string, end: string) => {
     setAdsLoading(true)
     setAdsError(null)
 
     try {
-      // Calculate dates for last 30 days
-      const endDate = new Date().toISOString().split('T')[0]
-      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-
-      const response = await fetch(`/api/integrations/google/ads?startDate=${startDate}&endDate=${endDate}`)
+      const url = buildUrl('/api/integrations/google/ads', { startDate: start, endDate: end })
+      const response = await fetch(url)
       if (response.ok) {
         const adsData = await response.json()
 
@@ -214,9 +230,10 @@ export default function ClientMarketingPage() {
     }
   }
 
-  const fetchConversionsData = async () => {
+  const fetchConversionsData = async (start: string, end: string) => {
     try {
-      const response = await fetch('/api/integrations/google/analytics/conversions?startDate=30daysAgo&endDate=today')
+      const url = buildUrl('/api/integrations/google/analytics/conversions', { startDate: start, endDate: end })
+      const response = await fetch(url)
       if (response.ok) {
         const data = await response.json()
         setConversionsData(data)
@@ -231,7 +248,8 @@ export default function ClientMarketingPage() {
 
   const fetchAttributionModel = async () => {
     try {
-      const response = await fetch('/api/integrations/google/analytics/attribution')
+      const url = buildUrl('/api/integrations/google/analytics/attribution')
+      const response = await fetch(url)
       if (response.ok) {
         const data = await response.json()
         setAttributionModel(data.attributionModel)
@@ -252,6 +270,22 @@ export default function ClientMarketingPage() {
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat('en-ZA').format(value)
+  }
+
+  const formatDateRange = () => {
+    if (!startDate || !endDate) return 'Last 30 Days'
+
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+
+    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+  }
+
+  const handleUpdateData = () => {
+    fetchMarketingData(startDate, endDate)
+    fetchGA4Data(startDate, endDate)
+    fetchGoogleAdsData(startDate, endDate)
+    fetchConversionsData(startDate, endDate)
   }
 
   if (loading) {
@@ -286,17 +320,21 @@ export default function ClientMarketingPage() {
           <h1 className="text-4xl font-bold text-brand-navy mb-2">Your Marketing</h1>
           <p className="text-brand-navy/70 mt-2 text-base font-light">Track your advertising performance</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center px-4 py-2 text-sm font-semibold bg-tropical-teal text-white rounded-lg border border-tropical-teal shadow-sm">
+            <Eye className="h-4 w-4 mr-2" />
+            Website Performance
+          </div>
           <button
             onClick={() => router.push('/dashboard-client/google-ads')}
-            className="flex items-center px-4 py-2 text-sm font-semibold bg-brand-gold/20 text-brand-gold rounded-lg hover:bg-brand-gold/30 transition-colors border border-brand-gold/30"
+            className="flex items-center px-4 py-2 text-sm font-semibold bg-white text-brand-navy rounded-lg hover:bg-soft-gray/50 transition-colors border border-soft-gray"
           >
             <Target className="h-4 w-4 mr-2" />
             Google Ads
           </button>
           <button
             onClick={() => router.push('/dashboard-client/seo')}
-            className="flex items-center px-4 py-2 text-sm font-semibold bg-tropical-aqua/20 text-tropical-teal rounded-lg hover:bg-tropical-aqua/30 transition-colors border border-tropical-aqua/30"
+            className="flex items-center px-4 py-2 text-sm font-semibold bg-white text-brand-navy rounded-lg hover:bg-soft-gray/50 transition-colors border border-soft-gray"
           >
             <Search className="h-4 w-4 mr-2" />
             SEO
@@ -315,6 +353,33 @@ export default function ClientMarketingPage() {
               </p>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Date Range Selector */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-soft-gray">
+        <h3 className="text-base font-semibold text-brand-navy mb-3">Date Range</h3>
+        <div className="flex items-center gap-3">
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="px-3 py-2 text-sm border border-soft-gray rounded-lg focus:ring-2 focus:ring-brand-gold focus:border-transparent"
+          />
+          <span className="text-brand-navy/60 text-sm font-medium">to</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="px-3 py-2 text-sm border border-soft-gray rounded-lg focus:ring-2 focus:ring-brand-gold focus:border-transparent"
+          />
+          <button
+            onClick={handleUpdateData}
+            disabled={loading || ga4Loading || adsLoading}
+            className="px-4 py-2 text-sm font-semibold bg-brand-gold text-brand-navy rounded-lg hover:bg-brand-gold/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {(loading || ga4Loading || adsLoading) ? 'Updating...' : 'Update'}
+          </button>
         </div>
       </div>
 
@@ -454,7 +519,7 @@ export default function ClientMarketingPage() {
             <>
               <h3 className="text-lg font-bold text-brand-navy mb-4 flex items-center">
                 <Eye className="h-5 w-5 text-tropical-teal mr-2" />
-                Website Traffic (Last 30 Days)
+                Website Traffic ({formatDateRange()})
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="bg-white p-6 rounded-xl border border-soft-gray hover:shadow-md transition-all shadow-sm">
@@ -509,7 +574,7 @@ export default function ClientMarketingPage() {
             <div className="bg-white rounded-xl border border-soft-gray overflow-hidden shadow-sm">
               <div className="px-6 py-5 border-b border-soft-gray">
                 <h3 className="text-lg font-bold text-brand-navy">Traffic by Medium</h3>
-                <p className="text-sm text-brand-navy/60 mt-1">Google Analytics traffic sources (Last 30 Days)</p>
+                <p className="text-sm text-brand-navy/60 mt-1">Google Analytics traffic sources ({formatDateRange()})</p>
                 {attributionModel && (
                   <div className="mt-3 flex items-start gap-2 text-xs text-brand-navy/60">
                     <Info className="h-3.5 w-3.5 text-tropical-teal mt-0.5 flex-shrink-0" />
@@ -857,7 +922,7 @@ function ConversionTooltip({ conversionsData, children }: ConversionTooltipProps
               <div className="flex items-center justify-between p-6 border-b border-soft-gray">
                 <div>
                   <h3 className="text-lg font-bold text-brand-navy">Conversion Events</h3>
-                  <p className="text-sm text-brand-navy/60 mt-1">Last 30 Days</p>
+                  <p className="text-sm text-brand-navy/60 mt-1">{formatDateRange()}</p>
                 </div>
                 <button
                   onClick={() => setShowPopup(false)}

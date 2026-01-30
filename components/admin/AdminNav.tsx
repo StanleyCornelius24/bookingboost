@@ -9,6 +9,7 @@ import {
   Building2,
   Settings,
   BarChart3,
+  Tags,
   Shield,
   LogOut,
   Menu,
@@ -21,6 +22,7 @@ const iconMap: Record<string, LucideIcon> = {
   BarChart3,
   Building2,
   Users,
+  Tags,
   Settings
 }
 

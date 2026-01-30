@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Building2, Mail, Calendar, Edit2, Trash2, Save, X, BarChart2, TrendingUp, ExternalLink } from 'lucide-react'
+import { Building2, Mail, Calendar, Edit2, Trash2, Save, X, BarChart2, TrendingUp, ExternalLink, Gauge } from 'lucide-react'
 
 interface Hotel {
   id: string
@@ -16,6 +16,7 @@ interface Hotel {
   google_analytics_property_id?: string
   google_ads_customer_id?: string
   meta_ad_account_id?: string
+  hasPageSpeed?: boolean
 }
 
 interface HotelManagementProps {
@@ -100,7 +101,7 @@ export default function HotelManagement({ initialHotels }: HotelManagementProps)
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -118,7 +119,7 @@ export default function HotelManagement({ initialHotels }: HotelManagementProps)
                 {hotels.filter(h => h.google_analytics_property_id).length}
               </p>
             </div>
-            <Building2 className="h-8 w-8 text-green-500" />
+            <BarChart2 className="h-8 w-8 text-green-500" />
           </div>
         </div>
         <div className="bg-white rounded-lg shadow p-6">
@@ -129,7 +130,18 @@ export default function HotelManagement({ initialHotels }: HotelManagementProps)
                 {hotels.filter(h => h.google_ads_customer_id || h.meta_ad_account_id).length}
               </p>
             </div>
-            <Building2 className="h-8 w-8 text-purple-500" />
+            <TrendingUp className="h-8 w-8 text-purple-500" />
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">With PageSpeed</p>
+              <p className="mt-2 text-3xl font-bold text-orange-600">
+                {hotels.filter(h => h.hasPageSpeed).length}
+              </p>
+            </div>
+            <Gauge className="h-8 w-8 text-orange-500" />
           </div>
         </div>
       </div>
@@ -197,7 +209,7 @@ export default function HotelManagement({ initialHotels }: HotelManagementProps)
                               {hotel.google_analytics_property_id && (
                                 <div className="group relative">
                                   <BarChart2 className="h-4 w-4 text-green-600" />
-                                  <span className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded whitespace-nowrap">
+                                  <span className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded whitespace-nowrap z-10">
                                     Google Analytics
                                   </span>
                                 </div>
@@ -205,8 +217,16 @@ export default function HotelManagement({ initialHotels }: HotelManagementProps)
                               {hotel.google_ads_customer_id && (
                                 <div className="group relative">
                                   <TrendingUp className="h-4 w-4 text-purple-600" />
-                                  <span className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded whitespace-nowrap">
+                                  <span className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded whitespace-nowrap z-10">
                                     Google Ads
+                                  </span>
+                                </div>
+                              )}
+                              {hotel.hasPageSpeed && (
+                                <div className="group relative">
+                                  <Gauge className="h-4 w-4 text-orange-600" />
+                                  <span className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded whitespace-nowrap z-10">
+                                    PageSpeed Data
                                   </span>
                                 </div>
                               )}
@@ -242,10 +262,17 @@ export default function HotelManagement({ initialHotels }: HotelManagementProps)
                         disabled={loading}
                       >
                         <option value="">Select...</option>
-                        <option value="NightsBridge">NightsBridge</option>
-                        <option value="Res Request">Res Request</option>
                         <option value="Booking Button">Booking Button</option>
+                        <option value="ResNova">ResNova</option>
+                        <option value="NA">NA</option>
+                        <option value="Synxis">Synxis</option>
+                        <option value="Activitar">Activitar</option>
                         <option value="Benson">Benson</option>
+                        <option value="Nightsbridge">Nightsbridge</option>
+                        <option value="Cloudbeds">Cloudbeds</option>
+                        <option value="Profitroom">Profitroom</option>
+                        <option value="Activity Bridge">Activity Bridge</option>
+                        <option value="HTI">HTI</option>
                         <option value="Other">Other</option>
                       </select>
                     ) : (

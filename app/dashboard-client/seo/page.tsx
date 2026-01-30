@@ -1,7 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, TrendingUp, Eye, Activity, MousePointerClick, CheckCircle2, XCircle, AlertTriangle, Info, RefreshCw } from 'lucide-react'
+import { Search, TrendingUp, Eye, Activity, MousePointerClick, CheckCircle2, XCircle, AlertTriangle, Info, RefreshCw, Settings, Target } from 'lucide-react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useApiUrl } from '@/lib/hooks/use-api-url'
+import { useSelectedHotelId } from '@/lib/hooks/use-selected-hotel-id'
 
 interface SEOData {
   organicTraffic: {
@@ -39,22 +43,41 @@ interface SEOAuditData {
 }
 
 export default function SEOPage() {
+  const router = useRouter()
+  const buildUrl = useApiUrl()
+  const { selectedHotelId, isReady } = useSelectedHotelId()
   const [loading, setLoading] = useState(true)
   const [seoData, setSeoData] = useState<SEOData | null>(null)
   const [seoLoading, setSeoLoading] = useState(true)
   const [auditData, setAuditData] = useState<SEOAuditData | null>(null)
   const [auditLoading, setAuditLoading] = useState(false)
   const [auditError, setAuditError] = useState<string | null>(null)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   useEffect(() => {
-    fetchSEOData()
-    fetchAuditData()
-  }, [])
+    if (isReady) {
+      // Set default date range to last 30 days
+      const end = new Date()
+      const start = new Date()
+      start.setDate(start.getDate() - 30)
 
-  const fetchSEOData = async () => {
+      const endDateStr = end.toISOString().split('T')[0]
+      const startDateStr = start.toISOString().split('T')[0]
+
+      setEndDate(endDateStr)
+      setStartDate(startDateStr)
+
+      fetchSEOData(startDateStr, endDateStr)
+      fetchAuditData()
+    }
+  }, [selectedHotelId, isReady])
+
+  const fetchSEOData = async (start: string, end: string) => {
     setSeoLoading(true)
     try {
-      const response = await fetch('/api/client/seo?startDate=30daysAgo&endDate=today')
+      const url = buildUrl('/api/client/seo', { startDate: start, endDate: end })
+      const response = await fetch(url)
       if (response.ok) {
         const data = await response.json()
         setSeoData(data)
@@ -74,7 +97,7 @@ export default function SEOPage() {
     setAuditLoading(true)
     setAuditError(null)
     try {
-      const url = forceRefresh ? '/api/client/seo-audit?refresh=true' : '/api/client/seo-audit'
+      const url = buildUrl('/api/client/seo-audit', forceRefresh ? { refresh: 'true' } : {})
       const response = await fetch(url)
       if (response.ok) {
         const data = await response.json()
@@ -97,6 +120,20 @@ export default function SEOPage() {
     return new Intl.NumberFormat('en-ZA').format(value)
   }
 
+  const handleUpdateData = () => {
+    if (startDate && endDate) {
+      fetchSEOData(startDate, endDate)
+    }
+  }
+
+  const formatDateRange = () => {
+    if (!startDate || !endDate) return 'Last 30 Days'
+
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+
+    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+  }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -138,11 +175,60 @@ export default function SEOPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-4xl font-bold text-brand-navy mb-2">SEO Performance</h1>
-        <p className="text-brand-navy/70 mt-2 text-base font-light">
-          Track your organic search performance and technical SEO health
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
+        <div>
+          <h1 className="text-4xl font-bold text-brand-navy mb-2">SEO Performance</h1>
+          <p className="text-brand-navy/70 mt-2 text-base font-light">
+            Track your organic search performance and technical SEO health
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push('/dashboard-client/marketing')}
+            className="flex items-center px-4 py-2 text-sm font-semibold bg-white text-brand-navy rounded-lg hover:bg-soft-gray/50 transition-colors border border-soft-gray"
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            Website Performance
+          </button>
+          <button
+            onClick={() => router.push('/dashboard-client/google-ads')}
+            className="flex items-center px-4 py-2 text-sm font-semibold bg-white text-brand-navy rounded-lg hover:bg-soft-gray/50 transition-colors border border-soft-gray"
+          >
+            <Target className="h-4 w-4 mr-2" />
+            Google Ads
+          </button>
+          <div className="flex items-center px-4 py-2 text-sm font-semibold bg-tropical-teal text-white rounded-lg border border-tropical-teal shadow-sm">
+            <Search className="h-4 w-4 mr-2" />
+            SEO
+          </div>
+        </div>
+      </div>
+
+      {/* Date Range Selector */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-soft-gray">
+        <h3 className="text-base font-semibold text-brand-navy mb-3">Date Range</h3>
+        <div className="flex items-center gap-3">
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="px-4 py-2 border border-soft-gray rounded-lg text-sm text-brand-navy focus:outline-none focus:ring-2 focus:ring-tropical-teal/50 focus:border-tropical-teal"
+          />
+          <span className="text-brand-navy/60 text-sm font-medium">to</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="px-4 py-2 border border-soft-gray rounded-lg text-sm text-brand-navy focus:outline-none focus:ring-2 focus:ring-tropical-teal/50 focus:border-tropical-teal"
+          />
+          <button
+            onClick={handleUpdateData}
+            disabled={seoLoading || !startDate || !endDate}
+            className="px-6 py-2 bg-tropical-teal text-white text-sm font-semibold rounded-lg hover:bg-tropical-teal/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {seoLoading ? 'Updating...' : 'Update'}
+          </button>
+        </div>
       </div>
 
       {/* Organic Traffic Score Cards */}
@@ -150,7 +236,7 @@ export default function SEOPage() {
         <>
           <h3 className="text-lg font-bold text-brand-navy mb-4 flex items-center">
             <TrendingUp className="h-5 w-5 text-tropical-teal mr-2" />
-            Organic Search Traffic (Last 30 Days)
+            Organic Search Traffic ({formatDateRange()})
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {[1, 2, 3, 4].map((i) => (
@@ -166,7 +252,7 @@ export default function SEOPage() {
         <>
           <h3 className="text-lg font-bold text-brand-navy mb-4 flex items-center">
             <TrendingUp className="h-5 w-5 text-tropical-teal mr-2" />
-            Organic Search Traffic (Last 30 Days)
+            Organic Search Traffic ({formatDateRange()})
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="bg-white p-6 rounded-xl border border-soft-gray hover:shadow-md transition-all shadow-sm">
@@ -204,7 +290,7 @@ export default function SEOPage() {
 
             <div className="bg-white p-6 rounded-xl border border-soft-gray hover:shadow-md transition-all shadow-sm">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-brand-navy/60">Conversions</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-brand-navy/60">Key Events</span>
                 <TrendingUp className="h-4 w-4 text-tropical-teal" />
               </div>
               <div className="text-2xl font-bold text-brand-navy">
@@ -221,7 +307,7 @@ export default function SEOPage() {
         <>
           <h3 className="text-lg font-bold text-brand-navy mb-4 flex items-center">
             <Search className="h-5 w-5 text-tropical-teal mr-2" />
-            Google Search Console (Last 30 Days)
+            Google Search Console ({formatDateRange()})
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {[1, 2, 3, 4].map((i) => (
@@ -237,7 +323,7 @@ export default function SEOPage() {
         <>
           <h3 className="text-lg font-bold text-brand-navy mb-4 flex items-center">
             <Search className="h-5 w-5 text-tropical-teal mr-2" />
-            Google Search Console (Last 30 Days)
+            Google Search Console ({formatDateRange()})
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="bg-white p-6 rounded-xl border border-soft-gray hover:shadow-md transition-all shadow-sm">
@@ -311,7 +397,7 @@ export default function SEOPage() {
         <div className="bg-white rounded-xl border border-soft-gray overflow-hidden shadow-sm">
           <div className="px-6 py-5 border-b border-soft-gray">
             <h3 className="text-lg font-bold text-brand-navy">Organic Traffic by Source</h3>
-            <p className="text-sm text-brand-navy/60 mt-1">Search engines driving organic traffic (Last 30 Days)</p>
+            <p className="text-sm text-brand-navy/60 mt-1">Search engines driving organic traffic ({formatDateRange()})</p>
           </div>
 
           <div className="overflow-x-auto">
