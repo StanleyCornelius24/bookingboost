@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
-import { getGoogleAnalyticsData } from '@/lib/get-google-analytics-data'
 import { GoogleAdsApi } from 'google-ads-api'
 
 export async function GET() {
