@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 
 // GET all hotels for the authenticated user
 export async function GET() {
@@ -16,11 +17,16 @@ export async function GET() {
       )
     }
 
+    // Check for impersonation
+    const cookieStore = await cookies()
+    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
+    const userId = impersonateUserId || session.user.id
+
     // Fetch all hotels for this user, ordered by display_order
     const { data: hotels, error } = await supabase
       .from('hotels')
       .select('*')
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .order('display_order', { ascending: true })
 
     if (error) {
@@ -53,6 +59,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
+      )
+    }
+
+    // Prevent creating hotels while impersonating
+    const cookieStore = await cookies()
+    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
+    if (impersonateUserId) {
+      return NextResponse.json(
+        { error: 'Cannot create hotels while impersonating' },
+        { status: 403 }
       )
     }
 
@@ -166,6 +182,16 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
+      )
+    }
+
+    // Prevent deleting hotels while impersonating
+    const cookieStore = await cookies()
+    const impersonateUserId = cookieStore.get('impersonate_user_id')?.value
+    if (impersonateUserId) {
+      return NextResponse.json(
+        { error: 'Cannot delete hotels while impersonating' },
+        { status: 403 }
       )
     }
 

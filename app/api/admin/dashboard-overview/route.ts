@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
-import { GoogleAdsApi } from 'google-ads-api'
 
 export async function GET() {
   const supabaseAuth = await createServerClient()
@@ -55,43 +54,6 @@ export async function GET() {
     if (hotelsError) {
       console.error('Error fetching hotels:', hotelsError)
       return NextResponse.json({ error: 'Failed to fetch hotels' }, { status: 500 })
-    }
-
-    // Get a reference token to use as fallback for all hotels
-    // Query with service role (should bypass RLS)
-    console.log('Fetching fallback Google token with service role...')
-
-    const { data: directTokens, error: directError } = await supabase
-      .from('api_tokens')
-      .select('*')
-      .eq('service', 'google')
-      .order('created_at', { ascending: false })
-      .limit(1)
-
-    let adminGoogleToken = null
-
-    console.log(`Token query result - count: ${directTokens?.length || 0}, error: ${directError ? 'YES' : 'NO'}`)
-
-    if (directError) {
-      console.error('❌ ERROR querying api_tokens table:')
-      console.error('Error code:', directError.code)
-      console.error('Error message:', directError.message)
-      console.error('Error details:', directError.details)
-      console.error('Full error:', JSON.stringify(directError, null, 2))
-      console.log(`⚠ No Google tokens found - query failed due to RLS policy or permissions`)
-    } else if (directTokens && directTokens.length > 0) {
-      adminGoogleToken = directTokens[0]
-      const { data: hotelData } = await supabase
-        .from('hotels')
-        .select('name')
-        .eq('id', adminGoogleToken.hotel_id)
-        .single()
-
-      const hotelName = hotelData?.name || 'Unknown'
-      console.log(`🔑 Admin dashboard using fallback tokens from: ${hotelName}`)
-      console.log(`✓ Fallback token found (created: ${new Date(adminGoogleToken.created_at).toLocaleDateString()})`)
-    } else {
-      console.log(`⚠ No Google tokens found - query returned empty`)
     }
 
     // Calculate date ranges for previous two complete months
@@ -191,79 +153,38 @@ export async function GET() {
             console.log(`===========================\n`)
           }
 
-          // Fetch Google Ads spend (if available)
+          // Fetch ad spend from marketing_metrics (includes Google Ads + Meta Ads)
           let currentAdSpend = 0
           let previousAdSpend = 0
 
-          if (hotel.google_ads_customer_id && process.env.GOOGLE_ADS_DEVELOPER_TOKEN) {
-            try {
-              // Get access token for this hotel, with fallback to admin token
-              // Use service role client for token queries
-              const { data: hotelToken } = await supabase
-                .from('api_tokens')
-                .select('access_token, refresh_token')
-                .eq('hotel_id', hotel.id)
-                .eq('service', 'google')
-                .maybeSingle()
+          try {
+            // Get current month ad spend from marketing_metrics
+            const { data: currentAds } = await supabase
+              .from('marketing_metrics')
+              .select('value')
+              .eq('hotel_id', hotel.id)
+              .in('source', ['google_ads', 'meta_ads'])
+              .eq('metric_type', 'spend')
+              .gte('date', formatDate(currentMonthStart))
+              .lte('date', formatDate(currentMonthEnd))
 
-              // Use hotel token if available, otherwise fall back to admin token
-              const tokenData = hotelToken || adminGoogleToken
+            currentAdSpend = currentAds?.reduce((sum, m) => sum + (m.value || 0), 0) || 0
 
-              if (tokenData) {
-                // Set up Google Ads API client
-                const client = new GoogleAdsApi({
-                  client_id: process.env.GOOGLE_CLIENT_ID!,
-                  client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-                  developer_token: process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
-                })
+            // Get previous month ad spend from marketing_metrics
+            const { data: previousAds } = await supabase
+              .from('marketing_metrics')
+              .select('value')
+              .eq('hotel_id', hotel.id)
+              .in('source', ['google_ads', 'meta_ads'])
+              .eq('metric_type', 'spend')
+              .gte('date', formatDate(previousMonthStart))
+              .lte('date', formatDate(previousMonthEnd))
 
-                const customer = client.Customer({
-                  customer_id: hotel.google_ads_customer_id,
-                  login_customer_id: hotel.google_ads_manager_id || undefined,
-                  refresh_token: tokenData.refresh_token,
-                })
+            previousAdSpend = previousAds?.reduce((sum, m) => sum + (m.value || 0), 0) || 0
 
-                // Query current month ad spend
-                const currentQuery = `
-                  SELECT
-                    metrics.cost_micros
-                  FROM campaign
-                  WHERE segments.date >= '${formatDate(currentMonthStart).replace(/-/g, '')}'
-                    AND segments.date <= '${formatDate(currentMonthEnd).replace(/-/g, '')}'
-                `
-
-                const currentResults = await customer.query(currentQuery)
-                currentAdSpend = currentResults.reduce((sum: number, row: any) => {
-                  return sum + (Number(row.metrics?.cost_micros || 0) / 1000000)
-                }, 0)
-
-                // Query previous month ad spend
-                const previousQuery = `
-                  SELECT
-                    metrics.cost_micros
-                  FROM campaign
-                  WHERE segments.date >= '${formatDate(previousMonthStart).replace(/-/g, '')}'
-                    AND segments.date <= '${formatDate(previousMonthEnd).replace(/-/g, '')}'
-                `
-
-                const previousResults = await customer.query(previousQuery)
-                previousAdSpend = previousResults.reduce((sum: number, row: any) => {
-                  return sum + (Number(row.metrics?.cost_micros || 0) / 1000000)
-                }, 0)
-
-                const tokenSource = hotelToken ? 'hotel token' : 'admin fallback token'
-                console.log(`✓ ${hotel.name} ad spend (using ${tokenSource}) - Current: $${currentAdSpend.toFixed(2)}, Previous: $${previousAdSpend.toFixed(2)}`)
-              } else {
-                console.log(`⚠ ${hotel.name} - No Google token available (ad spend will be $0)`)
-              }
-            } catch (error) {
-              const errorMsg = error instanceof Error ? error.message : String(error)
-              if (errorMsg.includes('invalid_grant')) {
-                console.error(`⚠ ${hotel.name} - Google OAuth token expired (ad spend will be $0)`)
-              } else {
-                console.error(`❌ ${hotel.name} - Google Ads API error: ${errorMsg}`)
-              }
-            }
+            console.log(`✓ ${hotel.name} ad spend - Current: $${currentAdSpend.toFixed(2)}, Previous: $${previousAdSpend.toFixed(2)}`)
+          } catch (error) {
+            console.error(`❌ ${hotel.name} - Error fetching ad spend from marketing_metrics:`, error)
           }
 
           // Fetch sessions from GA (stored in DB)
@@ -274,23 +195,27 @@ export async function GET() {
 
           if (hotel.google_analytics_property_id) {
             try {
-              // Get sessions from cached metrics
+              // Get sessions from marketing_metrics (reliable data source)
               const { data: currentMetrics } = await supabase
-                .from('hotel_metrics')
-                .select('sessions')
+                .from('marketing_metrics')
+                .select('value')
                 .eq('hotel_id', hotel.id)
+                .eq('source', 'google_analytics')
+                .eq('metric_type', 'sessions')
                 .gte('date', formatDate(currentMonthStart))
                 .lte('date', formatDate(currentMonthEnd))
 
               const { data: previousMetrics } = await supabase
-                .from('hotel_metrics')
-                .select('sessions')
+                .from('marketing_metrics')
+                .select('value')
                 .eq('hotel_id', hotel.id)
+                .eq('source', 'google_analytics')
+                .eq('metric_type', 'sessions')
                 .gte('date', formatDate(previousMonthStart))
                 .lte('date', formatDate(previousMonthEnd))
 
-              currentSessions = currentMetrics?.reduce((sum, m) => sum + (m.sessions || 0), 0) || 0
-              previousSessions = previousMetrics?.reduce((sum, m) => sum + (m.sessions || 0), 0) || 0
+              currentSessions = currentMetrics?.reduce((sum, m) => sum + (m.value || 0), 0) || 0
+              previousSessions = previousMetrics?.reduce((sum, m) => sum + (m.value || 0), 0) || 0
             } catch (error) {
               console.error(`Error fetching metrics for ${hotel.name}:`, error)
             }

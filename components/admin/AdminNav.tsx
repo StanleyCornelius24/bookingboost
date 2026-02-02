@@ -14,12 +14,14 @@ import {
   LogOut,
   Menu,
   X,
+  FileText,
   LucideIcon
 } from 'lucide-react'
 
 // Icon mapping
 const iconMap: Record<string, LucideIcon> = {
   BarChart3,
+  FileText,
   Building2,
   Users,
   Tags,

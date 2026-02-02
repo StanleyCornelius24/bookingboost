@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Users as UsersIcon, Mail, Shield, Calendar, Edit2, Trash2, Building2, UserCheck } from 'lucide-react'
+import { Users as UsersIcon, Mail, Shield, Calendar, Edit2, Trash2, Building2, UserCheck, ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react'
 
 interface Hotel {
   id: string
@@ -25,12 +25,18 @@ interface UserManagementProps {
   initialUsers: User[]
 }
 
+type SortField = 'name' | 'email' | 'role' | 'hotelCount' | 'created_at'
+type SortDirection = 'asc' | 'desc'
+
 export default function UserManagement({ initialUsers }: UserManagementProps) {
   const router = useRouter()
   const [users, setUsers] = useState<User[]>(initialUsers)
   const [editingUserId, setEditingUserId] = useState<string | null>(null)
   const [selectedRole, setSelectedRole] = useState<string>('')
   const [loading, setLoading] = useState(false)
+  const [sortField, setSortField] = useState<SortField>('created_at')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [searchQuery, setSearchQuery] = useState('')
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     setLoading(true)
@@ -112,6 +118,84 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
     }
   }
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('desc')
+    }
+  }
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-3 w-3 ml-1 inline opacity-0 group-hover:opacity-50" />
+    }
+    return sortDirection === 'asc'
+      ? <ArrowUp className="h-3 w-3 ml-1 inline" />
+      : <ArrowDown className="h-3 w-3 ml-1 inline" />
+  }
+
+  const sortedUsers = useMemo(() => {
+    // First, filter by search query
+    const filtered = users.filter(user => {
+      if (!searchQuery) return true
+
+      const query = searchQuery.toLowerCase()
+      const email = user.email.toLowerCase()
+      const role = user.role.toLowerCase()
+      const hotelNames = user.hotels.map(h => h.name.toLowerCase()).join(' ')
+      const userId = user.id.toLowerCase()
+
+      return email.includes(query) ||
+             role.includes(query) ||
+             hotelNames.includes(query) ||
+             userId.includes(query)
+    })
+
+    // Then sort the filtered results
+    return filtered.sort((a, b) => {
+      let aValue: string | number
+      let bValue: string | number
+
+      switch (sortField) {
+        case 'name':
+          aValue = a.hotels[0]?.name || ''
+          bValue = b.hotels[0]?.name || ''
+          break
+        case 'email':
+          aValue = a.email
+          bValue = b.email
+          break
+        case 'role':
+          aValue = a.role
+          bValue = b.role
+          break
+        case 'hotelCount':
+          aValue = a.hotels.length
+          bValue = b.hotels.length
+          break
+        case 'created_at':
+          aValue = new Date(a.created_at).getTime()
+          bValue = new Date(b.created_at).getTime()
+          break
+        default:
+          aValue = ''
+          bValue = ''
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortDirection === 'asc'
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue)
+      }
+
+      return sortDirection === 'asc'
+        ? (aValue as number) - (bValue as number)
+        : (bValue as number) - (aValue as number)
+    })
+  }, [users, sortField, sortDirection, searchQuery])
+
   const adminCount = users.filter(u => u.role === 'admin').length
   const agencyCount = users.filter(u => u.role === 'agency').length
   const clientCount = users.filter(u => u.role === 'client').length
@@ -121,6 +205,37 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
         <p className="mt-2 text-gray-600">Manage all users in the system</p>
+      </div>
+
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by name, email, hotel, or user ID..."
+            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+          />
+          {searchQuery && (
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+              <button
+                onClick={() => setSearchQuery('')}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <span className="text-sm">Clear</span>
+              </button>
+            </div>
+          )}
+        </div>
+        {searchQuery && (
+          <p className="mt-2 text-sm text-gray-600">
+            Found {sortedUsers.length} user{sortedUsers.length !== 1 ? 's' : ''} matching "{searchQuery}"
+          </p>
+        )}
       </div>
 
       {/* Stats */}
@@ -169,20 +284,40 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                  onClick={() => handleSort('name')}
+                >
                   User
+                  <SortIcon field="name" />
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                  onClick={() => handleSort('email')}
+                >
                   Email
+                  <SortIcon field="email" />
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                  onClick={() => handleSort('role')}
+                >
                   Role
+                  <SortIcon field="role" />
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                  onClick={() => handleSort('hotelCount')}
+                >
                   Hotels
+                  <SortIcon field="hotelCount" />
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                  onClick={() => handleSort('created_at')}
+                >
                   Joined
+                  <SortIcon field="created_at" />
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -190,7 +325,7 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {users.map((user) => (
+              {sortedUsers.map((user) => (
                 <tr key={user.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -309,11 +444,16 @@ export default function UserManagement({ initialUsers }: UserManagementProps) {
               ))}
             </tbody>
           </table>
-          {users.length === 0 && (
+          {sortedUsers.length === 0 && (
             <div className="text-center py-12">
               <UsersIcon className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No users found</h3>
-              <p className="mt-1 text-sm text-gray-500">No users have been registered yet.</p>
+              <p className="mt-1 text-sm text-gray-500">
+                {searchQuery
+                  ? `No users match "${searchQuery}". Try a different search term.`
+                  : 'No users have been registered yet.'
+                }
+              </p>
             </div>
           )}
         </div>

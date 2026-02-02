@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Building2, Mail, Calendar, Edit2, Trash2, Save, X, BarChart2, TrendingUp, ExternalLink, Gauge } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Building2, Mail, Calendar, Edit2, Trash2, Save, X, BarChart2, TrendingUp, ExternalLink, Gauge, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 
 interface Hotel {
   id: string
@@ -23,11 +23,16 @@ interface HotelManagementProps {
   initialHotels: Hotel[]
 }
 
+type SortField = 'name' | 'email' | 'user_role' | 'currency' | 'created_at' | 'booking_engine'
+type SortDirection = 'asc' | 'desc'
+
 export default function HotelManagement({ initialHotels }: HotelManagementProps) {
   const [hotels, setHotels] = useState<Hotel[]>(initialHotels)
   const [editingHotelId, setEditingHotelId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Hotel>>({})
   const [loading, setLoading] = useState(false)
+  const [sortField, setSortField] = useState<SortField>('created_at')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
   const handleEdit = (hotel: Hotel) => {
     setEditingHotelId(hotel.id)
@@ -93,6 +98,47 @@ export default function HotelManagement({ initialHotels }: HotelManagementProps)
     }
   }
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('desc')
+    }
+  }
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-3 w-3 ml-1 inline opacity-0 group-hover:opacity-50" />
+    }
+    return sortDirection === 'asc'
+      ? <ArrowUp className="h-3 w-3 ml-1 inline" />
+      : <ArrowDown className="h-3 w-3 ml-1 inline" />
+  }
+
+  const sortedHotels = useMemo(() => {
+    return [...hotels].sort((a, b) => {
+      let aValue: string | number = a[sortField] || ''
+      let bValue: string | number = b[sortField] || ''
+
+      // Handle date fields
+      if (sortField === 'created_at') {
+        aValue = new Date(aValue).getTime()
+        bValue = new Date(bValue).getTime()
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortDirection === 'asc'
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue)
+      }
+
+      return sortDirection === 'asc'
+        ? (aValue as number) - (bValue as number)
+        : (bValue as number) - (aValue as number)
+    })
+  }, [hotels, sortField, sortDirection])
+
   return (
     <div>
       <div className="mb-8">
@@ -152,23 +198,47 @@ export default function HotelManagement({ initialHotels }: HotelManagementProps)
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                  onClick={() => handleSort('name')}
+                >
                   Hotel
+                  <SortIcon field="name" />
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                  onClick={() => handleSort('email')}
+                >
                   Contact
+                  <SortIcon field="email" />
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                  onClick={() => handleSort('booking_engine')}
+                >
                   Booking Engine
+                  <SortIcon field="booking_engine" />
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                  onClick={() => handleSort('user_role')}
+                >
                   Role
+                  <SortIcon field="user_role" />
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                  onClick={() => handleSort('currency')}
+                >
                   Currency
+                  <SortIcon field="currency" />
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                  onClick={() => handleSort('created_at')}
+                >
                   Created
+                  <SortIcon field="created_at" />
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -176,7 +246,7 @@ export default function HotelManagement({ initialHotels }: HotelManagementProps)
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {hotels.map((hotel) => (
+              {sortedHotels.map((hotel) => (
                 <tr key={hotel.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     {editingHotelId === hotel.id ? (
@@ -353,7 +423,7 @@ export default function HotelManagement({ initialHotels }: HotelManagementProps)
               ))}
             </tbody>
           </table>
-          {hotels.length === 0 && (
+          {sortedHotels.length === 0 && (
             <div className="text-center py-12">
               <Building2 className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No hotels found</h3>

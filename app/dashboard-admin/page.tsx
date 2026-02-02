@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { RefreshCw, TrendingUp, TrendingDown, Minus, Search } from 'lucide-react'
+import { RefreshCw, TrendingUp, TrendingDown, Minus, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import Link from 'next/link'
 
 interface HotelMetrics {
@@ -22,12 +22,17 @@ interface HotelMetrics {
   currency: string
 }
 
+type SortField = 'name' | 'currentUsers' | 'currentAdSpend' | 'currentDirectRevenue' | 'currentTotalRevenue'
+type SortDirection = 'asc' | 'desc'
+
 export default function AdminDashboardPage() {
   const [hotels, setHotels] = useState<HotelMetrics[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [period, setPeriod] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [sortField, setSortField] = useState<SortField>('currentUsers')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
   useEffect(() => {
     fetchDashboardData()
@@ -65,6 +70,26 @@ export default function AdminDashboardPage() {
     return new Intl.NumberFormat('en-US').format(value)
   }
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction if clicking the same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      // Set new field with default desc direction
+      setSortField(field)
+      setSortDirection('desc')
+    }
+  }
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-3 w-3 ml-1 inline opacity-0 group-hover:opacity-50" />
+    }
+    return sortDirection === 'asc'
+      ? <ArrowUp className="h-3 w-3 ml-1 inline" />
+      : <ArrowDown className="h-3 w-3 ml-1 inline" />
+  }
+
   // Filter and sort hotels
   const filteredAndSortedHotels = useMemo(() => {
     let filtered = hotels
@@ -77,9 +102,24 @@ export default function AdminDashboardPage() {
       )
     }
 
-    // Sort by sessions (high to low)
-    return filtered.sort((a, b) => b.currentUsers - a.currentUsers)
-  }, [hotels, searchQuery])
+    // Sort hotels
+    return filtered.sort((a, b) => {
+      const aValue = a[sortField]
+      const bValue = b[sortField]
+
+      // Handle string vs number comparison
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortDirection === 'asc'
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue)
+      }
+
+      // Number comparison
+      return sortDirection === 'asc'
+        ? (aValue as number) - (bValue as number)
+        : (bValue as number) - (aValue as number)
+    })
+  }, [hotels, searchQuery, sortField, sortDirection])
 
   const renderChangeIndicator = (change: number) => {
     if (change === 0) {
@@ -211,20 +251,40 @@ export default function AdminDashboardPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50">
+                <th
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 cursor-pointer hover:bg-gray-100 group"
+                  onClick={() => handleSort('name')}
+                >
                   Hotel
+                  <SortIcon field="name" />
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                  onClick={() => handleSort('currentUsers')}
+                >
                   Sessions
+                  <SortIcon field="currentUsers" />
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                  onClick={() => handleSort('currentAdSpend')}
+                >
                   Ad Spend
+                  <SortIcon field="currentAdSpend" />
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                  onClick={() => handleSort('currentDirectRevenue')}
+                >
                   Direct Revenue
+                  <SortIcon field="currentDirectRevenue" />
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                  onClick={() => handleSort('currentTotalRevenue')}
+                >
                   Total Revenue
+                  <SortIcon field="currentTotalRevenue" />
                 </th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
