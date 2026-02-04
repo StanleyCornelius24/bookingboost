@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   FileText,
+  UserCheck,
   LucideIcon
 } from 'lucide-react'
 
@@ -22,6 +23,7 @@ import {
 const iconMap: Record<string, LucideIcon> = {
   BarChart3,
   FileText,
+  UserCheck,
   Building2,
   Users,
   Tags,
@@ -80,8 +82,8 @@ export default function AdminNav({ navigation, onSignOut }: AdminNavProps) {
             <Image
               src="/logo.png"
               alt="BookingFocus Logo"
-              width={100}
-              height={100}
+              width={50}
+              height={50}
               className="object-contain"
               priority
             />

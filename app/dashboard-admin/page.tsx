@@ -212,7 +212,7 @@ export default function AdminDashboardPage() {
           )}
         </div>
         <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-xs font-medium text-gray-500 mb-1">Total Sessions Last Month</h3>
+          <h3 className="text-xs font-medium text-gray-500 mb-1">Total Sessions</h3>
           <p className="text-xl font-bold text-gray-900">
             {formatNumber(filteredAndSortedHotels.reduce((sum, h) => sum + h.currentUsers, 0))}
           </p>

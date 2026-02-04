@@ -48,6 +48,7 @@ export default async function AdminDashboardLayout({
     const navigation = [
       { name: 'Dashboard', href: '/dashboard-admin', icon: 'BarChart3' },
       { name: 'Reports', href: '/dashboard-admin/reports', icon: 'FileText' },
+      { name: 'Lead Management', href: '/dashboard-admin/lead-management', icon: 'UserCheck' },
       { name: 'All Hotels', href: '/dashboard-admin/hotels', icon: 'Building2' },
       { name: 'All Users', href: '/dashboard-admin/users', icon: 'Users' },
       { name: 'Channels', href: '/dashboard-admin/channels', icon: 'Tags' },
