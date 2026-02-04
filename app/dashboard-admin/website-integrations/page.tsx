@@ -413,10 +413,10 @@ function SettingsDialog({
     const data = {
       website_name: formData.website_name,
       website_url: formData.website_url,
-      form_ids: formData.form_ids.split(',').map((id) => id.trim()).filter(Boolean),
+      form_ids: formData.form_ids.split(',').map((id: string) => id.trim()).filter(Boolean),
       daily_report_email: formData.daily_report_email
         .split(',')
-        .map((email) => email.trim())
+        .map((email: string) => email.trim())
         .filter(Boolean),
       daily_report_enabled: formData.daily_report_enabled,
       status: formData.status,
@@ -585,10 +585,10 @@ function AddWebsiteDialog({
       ...formData,
       hotelId: selectedHotelId,
       hotelName: selectedHotelName, // Include hotel name for success message
-      form_ids: formData.form_ids.split(',').map((id) => id.trim()).filter(Boolean),
+      form_ids: formData.form_ids.split(',').map((id: string) => id.trim()).filter(Boolean),
       daily_report_email: formData.daily_report_email
         .split(',')
-        .map((email) => email.trim())
+        .map((email: string) => email.trim())
         .filter(Boolean),
     }
 
