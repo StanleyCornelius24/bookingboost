@@ -170,6 +170,9 @@ async function processWebhook(
       // Skip system/metadata fields
       if (systemFields.has(key)) return
 
+      // Skip null/undefined values
+      if (value === null || value === undefined) return
+
       const fieldValue = typeof value === 'object' ? value.value : value
       const fieldValueStr = String(fieldValue || '').trim()
       const fieldLabel = (typeof value === 'object' ? value.label : '') || ''
