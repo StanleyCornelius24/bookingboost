@@ -190,11 +190,40 @@ async function processWebhook(
       }
       // Phone detection (contains digits and phone-like characters)
       else if (
-        /[\d\-\(\)\+\s]{10,}/.test(fieldValueStr) &&
-        !phone &&
-        fieldValueStr.length < 30
+        /^[\d\-\(\)\+\s]{10,30}$/.test(fieldValueStr) &&
+        !phone
       ) {
         phone = fieldValueStr
+      }
+      // Date detection (YYYY-MM-DD or similar formats)
+      else if (/^\d{4}-\d{2}-\d{2}/.test(fieldValueStr)) {
+        // First date found becomes arrival, second becomes departure
+        if (!arrivalDate) {
+          arrivalDate = fieldValueStr
+        } else if (!departureDate) {
+          departureDate = fieldValueStr
+        }
+      }
+      // Country code detection (2-letter codes)
+      else if (/^[A-Z]{2}$/.test(fieldValueStr) && !nationality) {
+        nationality = fieldValueStr
+      }
+      // Single digit number (likely adults/children count)
+      else if (/^\d{1,2}$/.test(fieldValueStr)) {
+        const num = parseInt(fieldValueStr)
+        if (adults === 0 && num > 0) {
+          adults = num
+        } else if (children === 0) {
+          children = num
+        }
+      }
+      // Room type detection (common hotel room types)
+      else if (
+        !interestedIn &&
+        fieldValueStr.length < 50 &&
+        /\b(standard|deluxe|suite|double|single|twin|king|queen|room|villa|chalet|cottage)\b/i.test(fieldValueStr)
+      ) {
+        interestedIn = fieldValueStr
       }
       // Name detection (short text without @ or excessive punctuation)
       else if (
@@ -293,44 +322,56 @@ async function processWebhook(
           leadValue = parseFloat(numericValue)
         }
       }
-      // Message detection (longer text)
-      else if (fieldValueStr.length > 20 && !message) {
+      // Message detection (longer text, but skip common non-message patterns)
+      else if (
+        fieldValueStr.length > 10 &&
+        !message &&
+        !fieldValueStr.startsWith('Mozilla/') &&
+        !fieldValueStr.startsWith('http')
+      ) {
         message = fieldValueStr
       }
     })
 
-    // Fallback: if message is empty, use longest field value
-    if (!message) {
-      const allValues = Object.values(fields)
-        .filter((v) => v !== null && v !== undefined)
-        .map((v: any) => (typeof v === 'object' && v !== null ? v.value : v))
-        .filter((v) => v && String(v).trim().length > 0)
-        .map((v) => String(v).trim())
+    // If no message found, create one from booking details or use longest suitable field
+    if (!message || message.length < 10) {
+      // First try to create from booking details
+      const bookingParts = []
+      if (interestedIn) bookingParts.push(`Room: ${interestedIn}`)
+      if (arrivalDate) bookingParts.push(`Check-in: ${arrivalDate}`)
+      if (departureDate) bookingParts.push(`Check-out: ${departureDate}`)
+      if (adults) bookingParts.push(`${adults} adult${adults > 1 ? 's' : ''}`)
+      if (children) bookingParts.push(`${children} child${children !== 1 ? 'ren' : ''}`)
 
-      message = allValues.length > 0
-        ? allValues.reduce((longest, current) =>
-            current.length > longest.length ? current : longest
-          , '')
-        : ''
+      if (bookingParts.length > 0) {
+        message = `Booking enquiry - ${bookingParts.join(', ')}`
+      } else {
+        // Last resort: use longest field value (excluding system fields)
+        const allValues = Object.values(fields)
+          .filter((v) => v !== null && v !== undefined)
+          .map((v: any) => (typeof v === 'object' && v !== null ? v.value : v))
+          .filter((v) => {
+            const str = String(v).trim()
+            return (
+              str.length > 0 &&
+              !str.startsWith('Mozilla/') &&
+              !str.startsWith('http') &&
+              str.length < 500
+            )
+          })
+          .map((v) => String(v).trim())
+
+        message = allValues.length > 0
+          ? allValues.reduce((longest, current) =>
+              current.length > longest.length ? current : longest
+            , '')
+          : 'New enquiry from contact form'
+      }
     }
 
     // Validation
     if (!name) {
       name = email || phone || 'Anonymous'
-    }
-
-    // If no message, create one from booking details
-    if (!message || message.length < 5) {
-      const parts = []
-      if (interestedIn) parts.push(`Room: ${interestedIn}`)
-      if (arrivalDate) parts.push(`Check-in: ${arrivalDate}`)
-      if (departureDate) parts.push(`Check-out: ${departureDate}`)
-      if (adults) parts.push(`${adults} adult${adults > 1 ? 's' : ''}`)
-      if (children) parts.push(`${children} child${children !== 1 ? 'ren' : ''}`)
-
-      message = parts.length > 0
-        ? `Booking enquiry - ${parts.join(', ')}`
-        : 'New booking enquiry from contact form'
     }
 
     // Determine lead source from payload
