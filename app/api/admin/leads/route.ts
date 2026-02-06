@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     // Build query
     let query = supabase
       .from('leads')
-      .select('*, website_configs(website_name, website_url)', {
+      .select('*, website_configs(website_name, website_url), hotels(name)', {
         count: 'exact',
       })
       .eq('hotel_id', hotelRecord.id)

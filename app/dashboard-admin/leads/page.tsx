@@ -204,6 +204,7 @@ export default function LeadsManagementPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
+                    <TableHead>Property</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead>Dates</TableHead>
                     <TableHead>Guests</TableHead>
@@ -221,6 +222,14 @@ export default function LeadsManagementPage() {
                         <div>{lead.name}</div>
                         {lead.nationality && (
                           <div className="text-xs text-gray-500">{lead.nationality}</div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm font-medium">
+                          {lead.website_configs?.website_name || lead.hotels?.name || hotelName || '-'}
+                        </div>
+                        {lead.interested_in && (
+                          <div className="text-xs text-slate-500">Room: {lead.interested_in}</div>
                         )}
                       </TableCell>
                       <TableCell>
