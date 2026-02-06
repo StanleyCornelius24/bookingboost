@@ -136,7 +136,8 @@ async function processWebhook(
     const formTitle = payload.form_title || payload.title || 'Contact Form'
 
     // Extract fields (Gravity Forms uses numeric field IDs)
-    const fields = payload.fields || payload.entry || {}
+    // Fields can be in payload.fields, payload.entry, or directly in payload root
+    const fields = payload.fields || payload.entry || payload
 
     // Try to intelligently extract common fields
     // This is a best-effort extraction - adjust based on actual Gravity Forms setup
@@ -155,8 +156,20 @@ async function processWebhook(
     let leadValue: number = 0
     let leadSource: string = 'form_submission'
 
+    // System/metadata fields to skip (Gravity Forms built-in fields)
+    const systemFields = new Set([
+      'id', 'form_id', 'post_id', 'date_created', 'date_updated', 'is_starred',
+      'is_read', 'ip', 'source_url', 'user_agent', 'currency', 'payment_status',
+      'payment_date', 'payment_amount', 'payment_method', 'transaction_id',
+      'is_fulfilled', 'created_by', 'transaction_type', 'status', 'source_id',
+      'submission_speeds', 'entry_id', 'form_title'
+    ])
+
     // Strategy: Look for field values that match expected patterns
     Object.entries(fields).forEach(([key, value]: [string, any]) => {
+      // Skip system/metadata fields
+      if (systemFields.has(key)) return
+
       const fieldValue = typeof value === 'object' ? value.value : value
       const fieldValueStr = String(fieldValue || '').trim()
       const fieldLabel = (typeof value === 'object' ? value.label : '') || ''
@@ -300,14 +313,18 @@ async function processWebhook(
       name = email || phone || 'Anonymous'
     }
 
+    // If no message, create one from booking details
     if (!message || message.length < 5) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid form data: message is required and must be at least 5 characters',
-        },
-        { status: 400 }
-      )
+      const parts = []
+      if (interestedIn) parts.push(`Room: ${interestedIn}`)
+      if (arrivalDate) parts.push(`Check-in: ${arrivalDate}`)
+      if (departureDate) parts.push(`Check-out: ${departureDate}`)
+      if (adults) parts.push(`${adults} adult${adults > 1 ? 's' : ''}`)
+      if (children) parts.push(`${children} child${children !== 1 ? 'ren' : ''}`)
+
+      message = parts.length > 0
+        ? `Booking enquiry - ${parts.join(', ')}`
+        : 'New booking enquiry from contact form'
     }
 
     // Determine lead source from payload
