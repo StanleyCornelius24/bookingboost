@@ -146,7 +146,7 @@ export default function AdminDashboardPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
+        <RefreshCw className="h-8 w-8 animate-spin text-slate-400" />
       </div>
     )
   }
@@ -174,7 +174,7 @@ export default function AdminDashboardPage() {
         </div>
         <button
           onClick={fetchDashboardData}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="inline-flex items-center px-4 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-900 transition-all duration-150 shadow-sm text-sm font-medium"
         >
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
@@ -184,18 +184,18 @@ export default function AdminDashboardPage() {
       {/* Search Bar */}
       <div className="mb-6">
         <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search hotels by name..."
+            placeholder="Search hotels..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent bg-white shadow-sm"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
             >
               ✕
             </button>
@@ -204,40 +204,40 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-xs font-medium text-gray-500 mb-1">Total Hotels</h3>
-          <p className="text-xl font-bold text-gray-900">{filteredAndSortedHotels.length}</p>
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-5">
+          <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Total Hotels</h3>
+          <p className="text-2xl font-semibold text-slate-900">{filteredAndSortedHotels.length}</p>
           {searchQuery && (
-            <p className="text-[10px] text-gray-500 mt-0.5">of {hotels.length} total</p>
+            <p className="text-xs text-slate-500 mt-1">of {hotels.length} total</p>
           )}
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-xs font-medium text-gray-500 mb-1">Total Sessions</h3>
-          <p className="text-xl font-bold text-gray-900">
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-5">
+          <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Total Sessions</h3>
+          <p className="text-2xl font-semibold text-slate-900">
             {formatNumber(filteredAndSortedHotels.reduce((sum, h) => sum + h.currentUsers, 0))}
           </p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-xs font-medium text-gray-500 mb-1">Total Ad Spend</h3>
-          <p className="text-xl font-bold text-gray-900">
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-5">
+          <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Total Ad Spend</h3>
+          <p className="text-2xl font-semibold text-slate-900">
             {formatCurrency(
               filteredAndSortedHotels.reduce((sum, h) => sum + h.currentAdSpend, 0),
               filteredAndSortedHotels[0]?.currency || 'USD'
             )}
           </p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-xs font-medium text-gray-500 mb-1">Total Direct Revenue</h3>
-          <p className="text-xl font-bold text-gray-900">
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-5">
+          <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Direct Revenue</h3>
+          <p className="text-2xl font-semibold text-slate-900">
             {formatCurrency(
               filteredAndSortedHotels.reduce((sum, h) => sum + h.currentDirectRevenue, 0),
               filteredAndSortedHotels[0]?.currency || 'USD'
             )}
           </p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-xs font-medium text-gray-500 mb-1">Total Revenue</h3>
-          <p className="text-xl font-bold text-gray-900">
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-5">
+          <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Total Revenue</h3>
+          <p className="text-2xl font-semibold text-slate-900">
             {formatCurrency(
               filteredAndSortedHotels.reduce((sum, h) => sum + h.currentTotalRevenue, 0),
               filteredAndSortedHotels[0]?.currency || 'USD'
@@ -246,58 +246,58 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-slate-200">
+            <thead className="bg-slate-50">
               <tr>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 cursor-pointer hover:bg-gray-100 group"
+                  className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wide sticky left-0 bg-slate-50 cursor-pointer hover:bg-slate-100 group transition-colors"
                   onClick={() => handleSort('name')}
                 >
                   Hotel
                   <SortIcon field="name" />
                 </th>
                 <th
-                  className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                  className="px-6 py-3 text-right text-xs font-medium text-slate-600 uppercase tracking-wide cursor-pointer hover:bg-slate-100 group transition-colors"
                   onClick={() => handleSort('currentUsers')}
                 >
                   Sessions
                   <SortIcon field="currentUsers" />
                 </th>
                 <th
-                  className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                  className="px-6 py-3 text-right text-xs font-medium text-slate-600 uppercase tracking-wide cursor-pointer hover:bg-slate-100 group transition-colors"
                   onClick={() => handleSort('currentAdSpend')}
                 >
                   Ad Spend
                   <SortIcon field="currentAdSpend" />
                 </th>
                 <th
-                  className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                  className="px-6 py-3 text-right text-xs font-medium text-slate-600 uppercase tracking-wide cursor-pointer hover:bg-slate-100 group transition-colors"
                   onClick={() => handleSort('currentDirectRevenue')}
                 >
                   Direct Revenue
                   <SortIcon field="currentDirectRevenue" />
                 </th>
                 <th
-                  className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                  className="px-6 py-3 text-right text-xs font-medium text-slate-600 uppercase tracking-wide cursor-pointer hover:bg-slate-100 group transition-colors"
                   onClick={() => handleSort('currentTotalRevenue')}
                 >
                   Total Revenue
                   <SortIcon field="currentTotalRevenue" />
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-slate-600 uppercase tracking-wide">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
+            <tbody className="divide-y divide-slate-200 bg-white">
               {filteredAndSortedHotels.map((hotel) => (
-                <tr key={hotel.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={hotel.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap sticky left-0 bg-white">
                     <Link
                       href={`/dashboard-admin/hotels?hotelId=${hotel.id}`}
-                      className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                      className="text-sm font-medium text-slate-900 hover:text-slate-700 hover:underline"
                     >
                       {hotel.name}
                     </Link>
@@ -337,7 +337,7 @@ export default function AdminDashboardPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     <Link
                       href={`/dashboard-admin/hotels?hotelId=${hotel.id}`}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      className="text-slate-600 hover:text-slate-900 text-sm font-medium hover:underline"
                     >
                       View Details
                     </Link>

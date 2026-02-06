@@ -126,25 +126,25 @@ export default function LeadsManagementPage() {
       {/* Summary Cards */}
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="p-6">
-            <div className="text-sm text-gray-600">Total Leads</div>
-            <div className="text-3xl font-bold mt-2">{summary.total}</div>
+          <Card className="p-5">
+            <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Leads</div>
+            <div className="text-2xl font-semibold mt-2 text-slate-900">{summary.total}</div>
           </Card>
-          <Card className="p-6">
-            <div className="text-sm text-gray-600">High Quality</div>
-            <div className="text-3xl font-bold mt-2 text-green-600">
+          <Card className="p-5">
+            <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">High Quality</div>
+            <div className="text-2xl font-semibold mt-2 text-emerald-600">
               {summary.high_quality}
             </div>
           </Card>
-          <Card className="p-6">
-            <div className="text-sm text-gray-600">Spam Detected</div>
-            <div className="text-3xl font-bold mt-2 text-red-600">
+          <Card className="p-5">
+            <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Spam Detected</div>
+            <div className="text-2xl font-semibold mt-2 text-rose-600">
               {summary.spam}
             </div>
           </Card>
-          <Card className="p-6">
-            <div className="text-sm text-gray-600">Converted</div>
-            <div className="text-3xl font-bold mt-2 text-blue-600">
+          <Card className="p-5">
+            <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Converted</div>
+            <div className="text-2xl font-semibold mt-2 text-sky-600">
               {summary.converted}
             </div>
           </Card>
