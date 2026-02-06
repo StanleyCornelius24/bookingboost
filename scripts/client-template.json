@@ -1,0 +1,28 @@
+{
+  "examples": [
+    {
+      "hotelName": "Safari Lodge",
+      "email": "info@safarilodge.co.za",
+      "website": "https://www.safarilodge.co.za",
+      "currency": "ZAR",
+      "adminEmail": "stanley.cornelius@gmail.com"
+    },
+    {
+      "hotelName": "Ocean View Hotel",
+      "email": "reservations@oceanview.com",
+      "website": "https://www.oceanview.com",
+      "currency": "USD",
+      "adminEmail": "stanley.cornelius@gmail.com"
+    }
+  ],
+  "instructions": {
+    "usage": "Copy an example above, modify the details, and use it with the onboarding script",
+    "fields": {
+      "hotelName": "Full name of the hotel/property",
+      "email": "Primary contact email for the property",
+      "website": "Full website URL including https://",
+      "currency": "3-letter currency code (USD, ZAR, EUR, GBP, etc.)",
+      "adminEmail": "Email of the BookingBoost user who will own this hotel"
+    }
+  }
+}
