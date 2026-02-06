@@ -302,13 +302,16 @@ async function processWebhook(
     // Fallback: if message is empty, use longest field value
     if (!message) {
       const allValues = Object.values(fields)
-        .map((v: any) => (typeof v === 'object' ? v.value : v))
+        .filter((v) => v !== null && v !== undefined)
+        .map((v: any) => (typeof v === 'object' && v !== null ? v.value : v))
         .filter((v) => v && String(v).trim().length > 0)
         .map((v) => String(v).trim())
 
-      message = allValues.reduce((longest, current) =>
-        current.length > longest.length ? current : longest
-      , '')
+      message = allValues.length > 0
+        ? allValues.reduce((longest, current) =>
+            current.length > longest.length ? current : longest
+          , '')
+        : ''
     }
 
     // Validation
