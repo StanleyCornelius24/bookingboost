@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/table'
 import { useSelectedHotelId } from '@/lib/hooks/use-selected-hotel-id'
 import { useApiUrl } from '@/lib/hooks/use-api-url'
+import { LeadDetailModal } from '@/components/LeadDetailModal'
 import type { Lead } from '@/types'
 
 export default function LeadsManagementPage() {
@@ -22,6 +23,8 @@ export default function LeadsManagementPage() {
   const [summary, setSummary] = useState<any>(null)
   const [filter, setFilter] = useState<string | null>(null)
   const [hotelName, setHotelName] = useState<string>('')
+  const [selectedLead, setSelectedLead] = useState<any>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const { selectedHotelId, isReady } = useSelectedHotelId()
   const buildUrl = useApiUrl()
 
@@ -53,6 +56,61 @@ export default function LeadsManagementPage() {
       console.error('Failed to fetch leads:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleLeadClick = (lead: any) => {
+    setSelectedLead(lead)
+    setIsModalOpen(true)
+  }
+
+  const handleUpdateLead = async (leadId: string, updates: any) => {
+    try {
+      const response = await fetch(`/api/admin/leads/${leadId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update lead')
+      }
+
+      // Refresh leads list
+      await fetchLeads()
+
+      // Update selected lead
+      const data = await response.json()
+      setSelectedLead(data.lead)
+    } catch (error) {
+      console.error('Failed to update lead:', error)
+      alert('Failed to update lead. Please try again.')
+      throw error
+    }
+  }
+
+  const handleDeleteLead = async (leadId: string) => {
+    try {
+      const response = await fetch(`/api/admin/leads/${leadId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete lead')
+      }
+
+      // Refresh leads list
+      await fetchLeads()
+
+      // Close modal
+      setIsModalOpen(false)
+      setSelectedLead(null)
+    } catch (error) {
+      console.error('Failed to delete lead:', error)
+      alert('Failed to delete lead. Please try again.')
+      throw error
     }
   }
 
@@ -217,7 +275,11 @@ export default function LeadsManagementPage() {
                 </TableHeader>
                 <TableBody>
                   {leads.map((lead: any) => (
-                    <TableRow key={lead.id}>
+                    <TableRow
+                      key={lead.id}
+                      onClick={() => handleLeadClick(lead)}
+                      className="cursor-pointer hover:bg-slate-50 transition-colors"
+                    >
                       <TableCell className="font-medium">
                         <div>{lead.name}</div>
                         {lead.nationality && (
@@ -287,6 +349,18 @@ export default function LeadsManagementPage() {
           )}
         </div>
       </Card>
+
+      {/* Lead Detail Modal */}
+      <LeadDetailModal
+        lead={selectedLead}
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false)
+          setSelectedLead(null)
+        }}
+        onUpdate={handleUpdateLead}
+        onDelete={handleDeleteLead}
+      />
     </div>
   )
 }
